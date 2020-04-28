@@ -69,8 +69,7 @@ write.csv(slice_rocks,paste(local_directory,analysis_name,"_Rock_Units_per_Bin.c
 
 distributed_sampling_over_time_sites <- sampling_over_time_sites <- accio_sampling_distributions_for_RevBayes(finds_per_bin = sites_per_bin_spc_rnd,sample_units_per_bin = ceiling(slice_sites));
 distributed_sampling_over_time_rocks <- sampling_over_time_rocks <- accio_sampling_distributions_for_RevBayes(finds_per_bin = rocks_per_bin_spc_rnd,sample_units_per_bin = ceiling(slice_rocks));
-distributed_sampling_over_time_sites$uniform <- NULL;
-distributed_sampling_over_time_rocks$uniform <- NULL;
+distributed_sampling_over_time_sites$uniform <- distributed_sampling_over_time_rocks$uniform <- NULL;
 all_intervals <- names(slice_rocks);
 # per-site probabilities of finding taxa;
 quantiles_for_sites <- accio_sampling_quantiles_for_all_intervals(sampling_over_time = distributed_sampling_over_time_sites,all_intervals = all_intervals,criterion="AICc",ttl_quantiles=21);
