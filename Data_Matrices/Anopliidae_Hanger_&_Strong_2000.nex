@@ -46,48 +46,8 @@ BEGIN CHARACTERS;
 	Eoplicanoplia       0110010101??010110010011?000?0000
 
 ;
-
 END;
-BEGIN CHARACTERS;
-	TITLE  Continuous_Characters;
-	DIMENSIONS  NCHAR=2;
-	FORMAT DATATYPE = CONTINUOUS GAP = - MISSING = ?;
-CHARSTATELABELS 
-		1 Shell_Width,
-		2 Shell_Length ; 
-	MATRIX
-	Rugosochonetes       1.23 5.2
-	Waagenites           5.2 ?
-	Glabrichonetina      5.2 ?
-	Permochonetes        5.2 ?
-	Pygmochonetes        5.2 ?
-	Demonedys            5.2 ?
-	Chonetina            5.2 ?
-	Costachonetes        5.2 ?
-	Subglobosochonetes   5.2 ?
-	Tornquistia          5.2 ?
-	Airtonia             ? ?
-	Anopliopsis          5.2 ?
-	Caenanoplia          ? ?
-	Globosochonetes      ? ?
-	Trichochonetes       ? ?
-	Yagonia              ? ?
-	Cedulia              ? ?
-	Corbicularia         ? ?
-	Holynetes            ? ?
-	Davoustia            ? ?
-	Aseptonetes          ? ?
-	Austronoplia         ? ?
-	Caplinoplia          ? ?
-	Cyrtoniscus          ? ?
-	Plicanoplia          ? ?
-	Anoplia              ? ?
-	Shagamella           ? ?
-	Eoplicanoplia        ? ?
 
-;
-
-END;
 BEGIN MacCladeStart;
 	Extended;
 
@@ -157,14 +117,14 @@ BEGIN MacClade;
 	ListWindow Characters open Gadget '12' '45' '228' '321' '517' 000;
 	ListWindow Taxa open Gadget '12' '50' '10' '542' '332' 100000000;
 	ListWindow Trees open Gadget '12' '50' '25' '134' '387';
-	ListWindow TypeSets closed Geneva '9' '50' '10' '276' '490';
-	ListWindow WtSets closed Geneva '9' '50' '10' '276' '490';
-	ListWindow ExSets closed Geneva '9' '50' '10' '276' '490';
-	ListWindow CharSets closed Geneva '9' '50' '10' '276' '490';
+	ListWindow TypeSets closed Gadget '9' '50' '10' '276' '490';
+	ListWindow WtSets closed Gadget '9' '50' '10' '276' '490';
+	ListWindow ExSets closed Gadget '9' '50' '10' '276' '490';
+	ListWindow CharSets closed Gadget '9' '50' '10' '276' '490';
 	ListWindow TaxSets closed Gadget '12' '50' '10' '134' '185';
-	ListWindow CharPartitions closed Geneva '9' '50' '10' '276' '490';
-	ListWindow CharPartNames closed Geneva '9' '50' '10' '276' '490';
-	ListWindow WtSets closed Geneva '9' '50' '10' '276' '490';
+	ListWindow CharPartitions closed Gadget '9' '50' '10' '276' '490';
+	ListWindow CharPartNames closed Gadget '9' '50' '10' '276' '490';
+	ListWindow WtSets closed Gadget '9' '50' '10' '276' '490';
 	ChartWindowPosition '50' '30' '688' '964';
 	StateNamesSymbols closed Gadget '12' '17' '273' '337' '322' '342';
 	WindowOrder Tree List Trees List Characters List Taxa;
