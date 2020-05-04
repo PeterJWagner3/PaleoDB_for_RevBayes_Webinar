@@ -12,6 +12,7 @@ taxonomic_rank <- c("subspecies","species","subgenus","genus","tribe","subfamily
 uncertains <- c("cf.","aff.","ex_gr.");
 missing_data_assignment <- c("NP","NO","NC","NF","","coordinates not computable using this model");
 paleodb_numeric_fields <- c("no","ma","size","occs","geoplate");
+newick_verbotten <- c(".","?","\"","\'");
 letter_states <- LETTERS[!LETTERS %in% c("I","O")];
 
 #dummy_finds <- data.frame()
@@ -654,6 +655,8 @@ accio_data_from_chosen_nexus_file <- function(polymorphs=T, UNKNOWN=-11, INAP=-2
 # INAP: value substituting for gap ("-")
 # rate_partitions: nameof CHARPARTITION that you want to use for dividing characters into general rate classes.
 #print("Choose the nexus file you with to analyze: ");
+print("Choose the nexus file that you wish to analyze: ");
+flush.console();
 nexus_file_name <- file.choose();
 nexus <- scan(file=nexus_file_name,what=character(),sep="\n");
 ml <- 0;
@@ -1354,7 +1357,8 @@ if (analysis_name=="")	{
 	}
 #initial_data <- accio_data_from_nexus_file(nexus_file_name=paste(read_data_directory,nexus_file_name,sep=""),polymorphs,UNKNOWN,INAP,character_partitions=rate_partition);
 #if (rate_partition!="")	{
-print("Choose a nexus file to convert to RevBayes preferred format:")
+print("Choose a nexus file to convert to RevBayes preferred format:");
+flush.console();
 initial_data <- accio_data_from_chosen_nexus_file(polymorphs,UNKNOWN,INAP,rate_partition,trend_partition);
 
 n_states <- initial_data$States;
@@ -1519,7 +1523,7 @@ return(output);
 
 #scribio_rev_bayes_script(analysis_name,taxon_names=otu_names,matrix_file_names,state_numbers,state_ordering,outgroup_taxa,unscored_taxa,fbd_parameterization_script,no_runs=4,write_scripts_directory=write_scripts_directory,set_wdir)
 #scribio_Rev_Bayes_script_for_partitioned_character_data(            analysis_name,   initial_data,matrix_file_names,state_numbers,state_ordering,coding,           write_scripts_directory,fbd_parameterization_script,character_rate_partitions,fossil_interval_file,set_wdir,output_file_lead="output/",script_file_lead="scripts/",no_runs=4);
-scribio_Rev_Bayes_script_for_partitioned_character_data <- function(analysis_name="",initial_data,matrix_file_names,partition_size,state_numbers,state_ordering,coding_bias,outgroup_taxa,ingroup_taxa,max_age,write_scripts_directory,fbd_parameterization_script="",character_rate_partitions="",character_trend_partitions="",fossil_interval_file,set_wdir,output_file_lead="output/",script_file_lead="scripts/",data_file_lead="data/",no_runs=4)	{
+scribio_Stepping_Stone_RevBayes_script_for_partitioned_character_data <- function(analysis_name="",initial_data,matrix_file_names,partition_size,state_numbers,state_ordering,coding_bias,outgroup_taxa,ingroup_taxa,max_age,write_scripts_directory,fbd_parameterization_script="",character_rate_partitions="",character_trend_partitions="",fossil_interval_file,set_wdir,output_file_lead="output/",script_file_lead="scripts/",data_file_lead="data/",write_file=T)	{
 # analysis_name: name that specificies this particular analysis.  (The clade name is a good choice)
 # initial_data: data from nexus file.  
 # matrix_file_names: a vector giving the list of all character matrices to be used
@@ -1541,10 +1545,10 @@ if (length(unique(character_trend_partitions))>1)
 	filename <- paste(filename,"_Driven_Trend_Test",sep="");
 if (fbd_parameterization_script=="")	{
 #	filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_Analysis.Rev",sep="");
-	filename <- paste(filename,"_Analysis.Rev",sep="");
+	filename <- paste(filename,"_Stepping_Stone_Analysis.Rev",sep="");
 	} else	{
 #	filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_FBD_Analysis.Rev",sep="");
-	filename <- paste(filename,"_FBD_Analysis.Rev",sep="");
+	filename <- paste(filename,"_FBD_Stepping_Stone_Analysis.Rev",sep="");
 	}
 revbayes_source <- "clear();"
 if (set_wdir=="")	{
@@ -1582,11 +1586,8 @@ if (length(unique(character_rate_partitions))>1)	{
 	partition_labels <- unique(character_rate_partitions)
 	revbayes_source <- c(revbayes_source,paste("rate_partition_labels <- v(\"",paste(partition_labels, collapse = "\",\""),"\");\t# names of rate partitions",sep=""));
 	revbayes_source <- c(revbayes_source,paste("ttl_rate_partitions <- ",length(partition_labels),";\t\t\t\t\t\t# number of rate partitions among character types",sep=""));
-	} #else	{
-#	revbayes_source <- c(revbayes_source,paste("rate_partitions <- v(\"",paste(rep("none",length(state_ordering)), collapse = "\",\""),"\");",sep=""));
-#	revbayes_source <- c(revbayes_source,"rate_partition_labels[1] <- \"none\";\t\t# we are not partitioning characters for different general rates");
-#	revbayes_source <- c(revbayes_source,paste("ttl_rate_partitions <- 1;\t\t# no rate rate partitions among characters",sep=""));
-#	}
+	}
+
 if (length(unique(character_trend_partitions))>1)	{
 	revbayes_source <- c(revbayes_source,paste("driven_trend_partitions <- v(\"",paste(tolower(character_trend_partitions), collapse = "\",\""),"\");\t# use 'driven' for characters with biased change",sep=""));
 	partition_labels <- unique(tolower(character_trend_partitions));
@@ -1690,7 +1691,235 @@ revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,"############################################################################");
 revbayes_source <- c(revbayes_source,"# Wrap it all into your model");
 revbayes_source <- c(revbayes_source,"############################################################################");
-revbayes_source <- c(revbayes_source,"mymodel = model(tau,Q);\t\t# tau should have FBD & character evolution models attached to it");
+revbayes_source <- c(revbayes_source,"mymodel = model(tau);\t\t# tau should have FBD & character evolution models attached to it");
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"# Add monitors & commence MCMC'ing");
+revbayes_source <- c(revbayes_source,"#  (Again, make sure that the source directory is OK)");
+revbayes_source <- c(revbayes_source,"# NOTE: the program saves trees once every printgen generations; so, the");
+revbayes_source <- c(revbayes_source,"#   lower the number, the more trees you save.");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"monitors = VectorMonitors();");
+stone_output <- analysis_name;
+if (length(unique(character_rate_partitions))>1)
+	stone_output <- paste(stone_output,paste(partition_labels,collapse="_vs_"),sep="_");
+revbayes_source <- c(revbayes_source,"if (clock_model==\"strict\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"output/",stone_output,"_Strict_Clock_Burst.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau,filename=\"output/",stone_output,"_Strict_Clock_Burst.log\", printgen=10,separator=TAB,tau));",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"big_bang\" || clock_model==\"early_burst\") \t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"output/",stone_output,"_Early_Burst.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau,filename=\"output/",stone_output,"_Early_Burst.log\", printgen=10,separator=TAB,tau));",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"uncorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"output/",stone_output,"_Uncorrelated_Relaxed_Clock.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau,filename=\"output/",stone_output,"_Uncorrelated_Relaxed_Clock.log\", printgen=10,separator=TAB,tau));",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"autocorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"output/",stone_output,"_Autocorrelated_Relaxed_Clock.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau,filename=\"output/",stone_output,"Autocorrelated_Relaxed_Clock.log\", printgen=10,separator=TAB,tau));",sep=""));
+revbayes_source <- c(revbayes_source,"\t}");
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"if (clock_model==\"strict\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tpow_p = powerPosterior(mymodel, moves, monitors, \"output/",stone_output,"_Strict_Clock_Test.out\", cats=cats);  ##Set up your power posterior from everything in completed analysis. Create output for power posterior in quotes",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"big_bang\" || clock_model==\"early_burst\") \t{");
+revbayes_source <- c(revbayes_source,paste("\tpow_p = powerPosterior(mymodel, moves, monitors, \"output/",stone_output,"_Early_Burst_Test.out\", cats=cats);  ##Set up your power posterior from everything in completed analysis. Create output for power posterior in quotes",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"uncorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tpow_p = powerPosterior(mymodel, moves, monitors, \"output/",stone_output,"_Uncorrelated_Relaxed_Clock_Test.out\", cats=cats);  ##Set up your power posterior from everything in completed analysis. Create output for power posterior in quotes",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"autocorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tpow_p = powerPosterior(mymodel, moves, monitors, \"output/",stone_output,"_Autocorrelated_Relaxed_Clock_Test.out\", cats=cats);  ##Set up your power posterior from everything in completed analysis. Create output for power posterior in quotes",sep=""));
+revbayes_source <- c(revbayes_source,"\t}");
+revbayes_source <- c(revbayes_source,"pow_p.burnin(generations=burnin_gens,tuningInterval=tuning_int);\t\t\t##Set up power posterior burn in. Should likely be logner than 10000");
+revbayes_source <- c(revbayes_source,"pow_p.run(generations=running_gens);");
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"#######let run#################");
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"if (clock_model==\"strict\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tss = steppingStoneSampler(file=\"output/",stone_output,"_Strict_Clock_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tps = pathSampler(file=\"output/",stone_output,"_Strict_Clock_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"big_bang\" || clock_model==\"early_burst\") \t{");
+revbayes_source <- c(revbayes_source,paste("\tss = steppingStoneSampler(file=\"output/",stone_output,"_Early_Burst_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tps = pathSampler(file=\"output/",stone_output,"_Early_Burst_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"uncorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tss = steppingStoneSampler(file=\"output/",stone_output,"_Uncorrelated_Relaxed_Clock_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tps = pathSampler(file=\"output/",stone_output,"_Uncorrelated_Relaxed_Clock_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"autocorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tss = steppingStoneSampler(file=\"output/",stone_output,"_Autocorrelated_Relaxed_Clock_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tps = pathSampler(file=\"output/",stone_output,"_Autocorrelated_Relaxed_Clock_Test.out\", powerColumnName=\"power\", likelihoodColumnName=\"likelihood\");",sep=""));
+revbayes_source <- c(revbayes_source,"\t}");
+revbayes_source <- c(revbayes_source,"ss.marginal();   ##Calculate and display marginal likelihood of stepping stone simulations")
+revbayes_source <- c(revbayes_source,"ps.marginal();   ##Calculate and display marginal likelihood of stepping stone simulations")
+if (write_file)
+	write(revbayes_source,file=filename);
+return(revbayes_source);
+}
+
+scribio_MCMC_RevBayes_script_for_partitioned_character_data <- function(analysis_name="",initial_data,matrix_file_names,partition_size,state_numbers,state_ordering,coding_bias,outgroup_taxa,ingroup_taxa,max_age,write_scripts_directory,fbd_parameterization_script="",character_rate_partitions="",character_trend_partitions="",fossil_interval_file,set_wdir,output_file_lead="output/",script_file_lead="scripts/",data_file_lead="data/",write_file=T,no_runs=4)	{
+# analysis_name: name that specificies this particular analysis.  (The clade name is a good choice)
+# initial_data: data from nexus file.  
+# matrix_file_names: a vector giving the list of all character matrices to be used
+# partition_size: vector giving number of characters per partition
+# state_numbers: vector giving the number of states for each matrix in matrix_file_names
+# state_numbers: vector giving the number of states for each matrix in matrix_file_names
+# state_ordering: vector designating unordered or ordered state evolution
+# write_scripts_directory: tell R where to send script file
+# FBD: if "true", then add script to initiate FBD analyses from a separate file
+# set_wdir: tell RevBayes where to set working directory
+# output_file_lead: tell RevBayes script where to send/find output (default: "output/")
+# script_file_lead: tell RevBayes script where to send/find scripts (default: "script/")
+# no_runs: tell RevBayes how many runs to execut (default=4)
+#filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_Partitioned_Analysis.Rev",sep="");
+filename <- paste(write_scripts_directory,analysis_name,sep="");
+if (length(unique(character_rate_partitions))>1)
+	filename <- paste(filename,"_Rate_Partitioned",sep="");
+if (length(unique(character_trend_partitions))>1)
+	filename <- paste(filename,"_Driven_Trend_Test",sep="");
+if (fbd_parameterization_script=="")	{
+#	filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_Analysis.Rev",sep="");
+	filename <- paste(filename,"_MCMC_Analysis.Rev",sep="");
+	} else	{
+#	filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_FBD_Analysis.Rev",sep="");
+	filename <- paste(filename,"_FBD_MCMC_Analysis.Rev",sep="");
+	}
+revbayes_source <- "clear();"
+if (set_wdir=="")	{
+	set_wdir <- getwd();
+	set_wdir <- strsplit(getwd(),"/")[[1]];
+	last_cell <- match("R_Projects",set_wdir);
+	set_wdir[last_cell] <- "RevBayes_Projects";
+	set_wdir <- paste(set_wdir[1:last_cell],collapse="/");
+	}
+if (set_wdir!="")
+	revbayes_source <- c(revbayes_source,paste("setwd(\"",set_wdir,"\");\t#CHANGE THIS TO THE FOLDER IN WHICH YOU HAVE REVBAYES SCRIPTS & DATA!!!",sep=""));
+
+revbayes_source <- c(revbayes_source,"### This director needs three subdirectories (folders):");
+revbayes_source <- c(revbayes_source,"#     RevBayes_Projects/scripts (additional RevBayes routines that will be used)");
+revbayes_source <- c(revbayes_source,"#     RevBayes_Projects/data (holds data matrices & taxonomic information)");
+revbayes_source <- c(revbayes_source,"#     RevBayes_Projects/output (where trees & logs will be sent)");
+
+revbayes_source <- c(revbayes_source,paste("source(\"",paste(script_file_lead,"Imperio_Default_Settings.Rev",sep=""),"\");",sep=""));
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"###############################################################################");
+revbayes_source <- c(revbayes_source,"# This is (these are) the nexus file(s) that you are using for this analysis  #");
+revbayes_source <- c(revbayes_source,"#     Make sure that filenames & directories are correct!!!");                #
+revbayes_source <- c(revbayes_source,"###############################################################################");
+file_name_string <- paste(matrix_file_names, collapse = "\", \"");
+file_name_string <- paste("filenames <- v(\"",file_name_string,"\");",sep="");
+file_name_string <-gsub("~/","",file_name_string);
+revbayes_source <- c(revbayes_source,file_name_string);
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,paste("partition_chars <- v(",paste(partition_size, collapse = ","),");",sep=""));
+revbayes_source <- c(revbayes_source,paste("partition_states <- v(",paste(state_numbers, collapse = ","),");",sep=""));
+revbayes_source <- c(revbayes_source,paste("partition_ordering <- v(\"",paste(state_ordering, collapse = "\",\""),"\");",sep=""));
+revbayes_source <- c(revbayes_source,paste("coding_bias <- v(\"",paste(coding_bias, collapse = "\",\""),"\");\t## prepare for ascertainment bias in binary characters; 'all': invariant & autapomorphies present; 'variable': all vary & autapomorphies present; 'informative': all vary & no autapomorphies.",sep=""));
+if (length(unique(character_rate_partitions))>1)	{
+	revbayes_source <- c(revbayes_source,paste("rate_partitions <- v(\"",paste(character_rate_partitions, collapse = "\",\""),"\");\t# rate partition for each character paritition",sep=""));
+	partition_labels <- unique(character_rate_partitions)
+	revbayes_source <- c(revbayes_source,paste("rate_partition_labels <- v(\"",paste(partition_labels, collapse = "\",\""),"\");\t# names of rate partitions",sep=""));
+	revbayes_source <- c(revbayes_source,paste("ttl_rate_partitions <- ",length(partition_labels),";\t\t\t\t\t\t# number of rate partitions among character types",sep=""));
+	}
+
+if (length(unique(character_trend_partitions))>1)	{
+	revbayes_source <- c(revbayes_source,paste("driven_trend_partitions <- v(\"",paste(tolower(character_trend_partitions), collapse = "\",\""),"\");\t# use 'driven' for characters with biased change",sep=""));
+	partition_labels <- unique(tolower(character_trend_partitions));
+	revbayes_source <- c(revbayes_source,paste("trend_partition_labels <- v(\"",paste(partition_labels, collapse = "\",\""),"\");\t# names of rate partitions",sep=""));
+	revbayes_source <- c(revbayes_source,paste("ttl_trend_partitions <- ",length(partition_labels),";\t\t\t\t\t\t# number of rate partitions among character types",sep=""));
+	}
+revbayes_source <- c(revbayes_source,paste("max_age <- ",max_age,";\t\t\t\t\t\t# used if big_bang==TRUE;",sep=""));
+revbayes_source <- c(revbayes_source,"");
+taxon_names <- initial_data$OTUs;
+notu <- length(initial_data$OTUs);
+if(as.numeric(initial_data$Outgroup[1])!=-1)	{
+	if (length(outgroup_taxa)>1)	{
+		outies <- paste(outgroup_taxa,collapse="\",\"");
+#			outies <- paste("v(\"",outies,sep="");
+		outies <- paste("v(\"",outies,"\")",sep="");
+		outies <- gsub(" ","_",outies);
+		revbayes_source <- c(revbayes_source,paste("outgroup = clade(",outies,");",sep=""));
+		} else	{
+		outies <- taxon_names[as.numeric(initial_data$Outgroup)];
+		outies <- gsub(" ","_",outies);
+		revbayes_source <- c(revbayes_source,paste("outgroup = clade(\"",outies,"\");",sep=""));
+		}
+	hip_crowd <- "\"";
+	hip_crowd <- paste(hip_crowd,paste(ingroup_taxa,collapse="\",\""),sep="");
+	hip_crowd <- paste(hip_crowd,"\"",sep="");
+	hip_crowd <- gsub(" ","_",hip_crowd);
+	revbayes_source <- c(revbayes_source,paste("ingroup = clade(",hip_crowd,");",sep=""));
+	} else	{
+	outies <- "ENTER_AN_OUTGROUP_HERE!"
+	revbayes_source <- c(revbayes_source,paste("outgroup = clade(\"",outies,"\");",sep=""));
+	hipsters <- "ENTER_THE_INGROUP_HERE!"
+	revbayes_source <- c(revbayes_source,paste("ingroup = clade(\"",hipsters,"\");",sep=""));
+	}
+if (length(initial_data$Unscored_Taxa)>0)
+	revbayes_source <- c(revbayes_source,paste("unscored_taxa <- v(",paste(initial_data$Unscored_Taxa,collapse=","),");",sep=""));
+
+revbayes_source <- c(revbayes_source,"among_char_var <- \"lognormal\"\t\t## ENTER_THE_AMONG-CHARACTER_RATE_DISTRIBUTION_YOU_WISH_TO_USE_HERE\";\t# enter \"gamma\" or \"lognormal\"");
+#revbayes_source <- c(revbayes_source,"clock_model <- \"ENTER_THE_CLOCK_MODEL_YOU_WISH_TO_USE_HERE\";\t# enter \"strict\" for strict clock, or \"lognormal\" for relaxed clock with lognormal variation; we'll add \"dirichlet\ eventually;");
+
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"#                  Get basic information about the clade                   #");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"n_data_subsets <- filenames.size();");
+if (fbd_parameterization_script!="")	{
+#	revbayes_source <- c(revbayes_source,paste("intervals = readDataDelimitedFile(file=\"data/",fossil_interval_file,"\",header=true);",sep=""));
+	xxx <- strsplit(fossil_interval_file,"/")[[1]];
+	fbd_file_name <- xxx[length(xxx)];
+	last_cell <- match("R_Projects",xxx);
+	xxx[last_cell+1] <- data_file_lead;
+	directory_lead <- paste(xxx[1:(last_cell+1)],collapse="/")
+	revbayes_source <- c(revbayes_source,paste("taxa <- readTaxonData(file=\"",data_file_lead,fbd_file_name,"\");",sep=""));
+	revbayes_source <- c(revbayes_source,paste("n_taxa <- taxa.size();"));
+	} else {
+	revbayes_source <- c(revbayes_source,"dummy <- readDiscreteCharacterData(filenames[1]);");
+	revbayes_source <- c(revbayes_source,"taxa <- dummy.taxa();");
+	revbayes_source <- c(revbayes_source,"n_taxa <- dummy.ntaxa();");
+	}
+revbayes_source <- c(revbayes_source,"n_branches <- (2 * n_taxa) - 2;");
+revbayes_source <- c(revbayes_source,"");
+if (fbd_parameterization_script!="")	{
+	revbayes_source <- c(revbayes_source,"############################################################################");
+	revbayes_source <- c(revbayes_source,"# Set up appropriate parameters for speciation, extinction & sampling.     #");
+	revbayes_source <- c(revbayes_source,"#      We also set up the tree search here.                                #");
+	revbayes_source <- c(revbayes_source,"#                                                                          #");
+	revbayes_source <- c(revbayes_source,"# NOTE: This will sometimes freeze; if it does, then edit the script so    #");
+	revbayes_source <- c(revbayes_source,"#      origination & extinction are set to 1.0. This usually works!        #");
+	revbayes_source <- c(revbayes_source,"############################################################################");
+#	revbayes_source <- c(revbayes_source,paste("source(\"",script_file_lead,fbd_parameterization_script),"\");",sep="");
+	revbayes_source <- c(revbayes_source,"moves = VectorMoves();");
+	revbayes_source <- c(revbayes_source,paste("source(\"",paste(script_file_lead,fbd_parameterization_script,sep=""),"\");",sep=""));
+	} else	{
+	revbayes_source <- c(revbayes_source,"############################################################################");
+	revbayes_source <- c(revbayes_source,"# Set up tree-search moves");
+	revbayes_source <- c(revbayes_source,"############################################################################");
+	revbayes_source <- c(revbayes_source,"moves = VectorMoves();");
+	revbayes_source <- c(revbayes_source,"topology ~ dnUniformTopology(taxa,outgroup);");
+	revbayes_source <- c(revbayes_source,"moves.append = mvNNI(topology, weight=1.0);   # nearest neighbor interchange");
+	revbayes_source <- c(revbayes_source,"moves.append = mvSPR(topology, weight=1.0);   # subtree pruning");
+	revbayes_source <- c(revbayes_source,"for (b in 1:n_branches) {");
+	revbayes_source <- c(revbayes_source,"    bl[b] ~ dnExponential(10.0);");
+	revbayes_source <- c(revbayes_source,"    moves.append = mvScale(bl[b]);");
+ 	revbayes_source <- c(revbayes_source,"   }");
+	revbayes_source <- c(revbayes_source,"tau := treeAssembly(topology, bl);  # assign branch lengths to trees");
+	revbayes_source <- c(revbayes_source,"");
+	}
+
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"# Set up appropriate Q-matrices for the partitions");
+revbayes_source <- c(revbayes_source,"#   as well as the among-character and among-branch");
+revbayes_source <- c(revbayes_source,"#   rate variation models");
+revbayes_source <- c(revbayes_source,"#  (Again, make sure that the directory is OK)");
+revbayes_source <- c(revbayes_source,"############################################################################");
+#if (length(unique(character_rate_partitions))>1)	{
+revbayes_source <- c(revbayes_source,paste("source(\"",script_file_lead,"Accio_Parameters_for_Analysis_Partitioned_by_States_and_Ordering_and_Class.Rev\");",sep=""));
+#	} else	{
+#	revbayes_source <- c(revbayes_source,paste("source(\"",script_file_lead,"Accio_Parameters_for_Analysis_Partitioned_by_States_and_Ordering.Rev\");",sep=""));
+#	}
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"# Wrap it all into your model");
+revbayes_source <- c(revbayes_source,"############################################################################");
+revbayes_source <- c(revbayes_source,"mymodel = model(tau);\t\t# tau should have FBD & character evolution models attached to it");
 revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,"############################################################################");
 revbayes_source <- c(revbayes_source,"# Add monitors & commence MCMC'ing");
@@ -1702,15 +1931,44 @@ revbayes_source <- c(revbayes_source,"monitors = VectorMonitors();");
 tree_file_name <- analysis_name;
 if (length(unique(character_rate_partitions))>1)
 	tree_file_name <- paste(tree_file_name,paste(partition_labels,collapse="_vs_"),sep="_");
-mcmc_output <- paste("output/",tolower(tree_file_name),sep="");
-revbayes_source <- c(revbayes_source,paste("## alter the file names to better reflect the analysis (e.g., ",tolower(analysis_name),"_strict_clock.log and ",tolower(analysis_name),"_strict_clock.trees)",sep=""));
-revbayes_source <- c(revbayes_source,paste("monitors.append(mnModel(filename=\"",mcmc_output,".log\", printgen=10));",sep=""));
-revbayes_source <- c(revbayes_source,paste("monitors.append(mnFile(tau, filename=\"",mcmc_output,".trees\",printgen=10,separator=TAB,tau));",sep=""));
+mcmc_output <- paste("output/",tree_file_name,sep="");
+revbayes_source <- c(revbayes_source,"if (clock_model==\"strict\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"",mcmc_output,"_Strict_Clock.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau, filename=\"",mcmc_output,"_Strict_Clock.trees\",printgen=10,separator=TAB,tau));",sep=""));
 if (fbd_parameterization_script!="")	{
-	revbayes_source <- c(revbayes_source,"monitors.append(mnScreen(printgen=500,mean_rt,alpha,fbd_p,fbd_q,fbd_r,summed_gaps,num_samp_anc,origin_time));");
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,alpha,fbd_p,fbd_q,fbd_r,num_samp_anc,origin_time));");
 	} else	{
-	revbayes_source <- c(revbayes_source,"monitors.append(mnScreen(printgen=500,mean_rt,alpha,origin_time));");
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,alpha,origin_time));");
 	}
+#analyses_outputs <- paste(output_file_lead,tree_file_name,"_Strict_Clock",sep="");
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"big_bang\" || clock_model==\"early_burst\") \t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"",mcmc_output,"_Early_Burst.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau, filename=\"",mcmc_output,"_Early_Burst.trees\",printgen=10,separator=TAB,tau));",sep=""));
+if (fbd_parameterization_script!="")	{
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,rel_bang,alpha,fbd_p,fbd_q,fbd_r,num_samp_anc,origin_time));");
+	} else	{
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,rel_bang,alpha,origin_time));");
+	}
+#analyses_outputs <- paste(output_file_lead,tree_file_name,"_Early_Burst",sep="");
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"uncorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"",mcmc_output,"_Uncorrelated_Relaxed_Clock.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau, filename=\"",mcmc_output,"_Uncorrelated_Relaxed_Clock.trees\",printgen=10,separator=TAB,tau));",sep=""));
+if (fbd_parameterization_script!="")	{
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,ucln_var,alpha,fbd_p,fbd_q,fbd_r,num_samp_anc,origin_time));");
+	} else	{
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,ucln_var,alpha,origin_time));");
+	}
+#analyses_outputs <- paste(output_file_lead,tree_file_name,"_Uncorrelated_Relaxed_Clock",sep="");
+revbayes_source <- c(revbayes_source,"\t} else if (clock_model==\"autocorrelated\")\t{");
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnModel(filename=\"",mcmc_output,"_Autocorrelated_Relaxed_Clock.log\", printgen=10));",sep=""));
+revbayes_source <- c(revbayes_source,paste("\tmonitors.append(mnFile(tau, filename=\"",mcmc_output,"_Autocorrelated_Relaxed_Clock.trees\",printgen=10,separator=TAB,tau));",sep=""));
+if (fbd_parameterization_script!="")	{
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,acln_var,alpha,fbd_p,fbd_q,fbd_r,num_samp_anc,origin_time));");
+	} else	{
+	revbayes_source <- c(revbayes_source,"\tmonitors.append(mnScreen(printgen=500,mean_rt,acln_var,alpha,origin_time));");
+	}
+#analyses_outputs <- paste(output_file_lead,tree_file_name,"_Autcorrelated_Relaxed_Clock",sep="");
+revbayes_source <- c(revbayes_source,"\t}");
 revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,"    ################################################################################");
 revbayes_source <- c(revbayes_source,"    # Here are some starting parameters for your MCMC analysis: but use your own!");
@@ -1759,9 +2017,9 @@ if (no_runs>1)	{
 	}
 revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,paste("source(\"",script_file_lead,"Accio_Consensus_Tree.Rev\");",sep=""));
-revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,paste("source(\"",script_file_lead,"Accio_Most_Probable_Tree.Rev\");",sep=""));
-write(revbayes_source,file=filename);
+if (write_file)
+	write(revbayes_source,file=filename);
 return(revbayes_source);
 }
 
@@ -2042,7 +2300,7 @@ if (sum(compendium$n_occs==0)>0)	{
 	missing_taxa_rows <- match(taxon_name,compendium$taxon_name);
 	taxon_list <- genera <- unique(sapply(taxon_name,diffindo_genus_names_from_species_names));
 	if (length(taxon_list)>0)	{
-		taxonomyless_finds <- accio_occurrences_for_list_of_taxa(taxon_list);
+		taxonomyless_finds <- accio_occurrences_for_list_of_taxa(taxon_list,paleogeography=paleogeography);
 		if (is.data.frame(taxonomyless_finds$collection_compendium))
 			for (mt in 1:length(missing_taxa))
 				compendium$n_occs[missing_taxa_rows[mt]] <- sum(taxonomyless_finds$occurrences_compendium$identified_name==taxon_name[mt]);
@@ -2431,28 +2689,34 @@ write(revbayes_babble,file=filename);
 }
 
 scribio_RevBayes_scripts_from_chosen_nexus_file_and_existing_FBD_script_and_data <- function(analysis_name,fa_info=NULL,taxon_subset_file=F,rate_partition="",trend_partition="",write_data_directory="",write_scripts_directory="",local_directory="",set_wdir="",data_file_lead="data/",UNKNOWN=-11,INAP=-22)	{
+if (ncol(fa_info)>2)	{
+	poss_cols <- unique(which(fa_info==max(fa_info[,2:ncol(fa_info)]),arr.ind = T)[,2]);
+	if (length(poss_cols)>1)	{
+		col_ages <- colSums(fa_info[,poss_cols]);
+		poss_cols <- poss_cols[match(max(col_ages),col_ages)];
+		}
+	fa_info <- fa_info[,c(1,poss_cols)];
+	colnames(fa_info) <- c("taxon","fa");
+	}
 print("This program will read a Nexus file and then create scripts that RevBayes can use to conduct phylogenetic analyses.");
 print("\tThe program will prompt you for:");
 print("\t\t1. The original nexus file;");
 print("\t\t2. A .tsv file giving first and last appearance dates of each taxon (in Ma before the youngest taxa);");
 print("\t\t3. A RevBayes script setting up the parameters for diversification & sampling;");
 print("");
+flush.console();
 #if (taxon_subset_file && tolower(taxon_subset_file)!="n")	{
 if (taxon_subset_file)	{
 	print("Choose file giving subset of taxa that you wish to be analyzed");
+	flush.console();
 	for (i in 1:100)	j <- 1;
 	} else	{   
-#	print("Choose the nexus file that you wish to analyze: ");
-	print("Choose a nexus file to convert to RevBayes preferred format:")
 	taxa_subset <- "";
 	}
-#if (taxon_subset_file!="" && tolower(taxon_subset_file)!="n")	{
 if (taxon_subset_file)	{
 	print(".....");
 	taxon_subset_file_name <- file.choose();
 	taxa_subset <- read.table(taxon_subset_file_name,header = T,stringsAsFactors=hell_no)[,1];
-#	print("Choose the nexus file that you wish to analyze: ");
-	print("Choose a nexus file to convert to RevBayes preferred format:")
 	}
 
 #basic_data <- diffindo_character_matrix_by_state_numbers_and_other_partitions(analysis_name,write_data_directory,rate_partition,trend_partition,taxa_subset,data_file_lead="data/",polymorphs=T,UNKNOWN,INAP);
@@ -2481,16 +2745,24 @@ if (taxa_subset[1]=="")	{
 # we now have all of the information that we need for the character-based part of FBD analyses.
 # However, let's see if there are any taxa that belong to the ingroup-clade that are excluded!
 print("Select .tsv file with first and last appearance dates for the FBD analysis:");
+flush.console();
+flush.console();
 clade_members <- ingroup_taxa;
 
-for (x in 1:10^6)	x <- x;
 fossil_interval_file <- file.choose();
-print("Choose the FBD parameterization script: ");
+print(paste("Using '",fossil_interval_file,"'",sep=""));
+flush.console();
+flush.console();
 fossil_intervals <- read.table(fossil_interval_file,header=T);
 max_age <- max(fossil_intervals$max);
 
-for (x in 1:10^6)	x <- x;
+print("Choose the FBD parameterization script: ");
+flush.console();
+flush.console();
 fbd_parameterization_script <- file.choose();
+print(paste("Using '",fbd_parameterization_script,"'",sep=""));
+flush.console();
+flush.console();
 break_it_down <- strsplit(fbd_parameterization_script,"")[[1]];
 if (sum(break_it_down=="/")>0)	{
 	script_file_lead <- "scripts/";
@@ -2506,19 +2778,26 @@ if (sum(break_it_down=="/")>0)	{
 	fbd_parameterization_script <- pathway[length(pathway)];
 	}
 
-revbayes_babble <- scribio_Rev_Bayes_script_for_partitioned_character_data(analysis_name,initial_data,matrix_file_names,partition_size,state_numbers,state_ordering,coding_bias,outgroup_taxa,ingroup_taxa,max_age,write_scripts_directory,fbd_parameterization_script,character_rate_partitions,character_trend_partitions,fossil_interval_file,set_wdir,output_file_lead=output_file_lead,script_file_lead=script_file_lead,data_file_lead=data_file_lead,no_runs=4);
+revbayes_stone_babble <- scribio_Stepping_Stone_RevBayes_script_for_partitioned_character_data(analysis_name,initial_data,matrix_file_names,partition_size,state_numbers,state_ordering,coding_bias,outgroup_taxa,ingroup_taxa,max_age,write_scripts_directory,fbd_parameterization_script,character_rate_partitions,character_trend_partitions,fossil_interval_file,set_wdir,output_file_lead=output_file_lead,script_file_lead=script_file_lead,data_file_lead=data_file_lead,write_file=F);
+revbayes_mcmc_babble <- scribio_MCMC_RevBayes_script_for_partitioned_character_data(analysis_name,initial_data,matrix_file_names,partition_size,state_numbers,state_ordering,coding_bias,outgroup_taxa,ingroup_taxa,max_age,write_scripts_directory,fbd_parameterization_script,character_rate_partitions,character_trend_partitions,fossil_interval_file,set_wdir,output_file_lead=output_file_lead,script_file_lead=script_file_lead,data_file_lead=data_file_lead,write_file=F,no_runs=3);
 
-filename <- paste(local_directory,analysis_name,sep="");
-if (length(unique(character_rate_partitions))>1)
-	filename <- paste(filename,"_Rate_Partitioned",sep="");
+filename_ss <- paste(local_directory,analysis_name,"_Stepping_Stone",sep="");
+filename_mcmc <- paste(local_directory,analysis_name,"_MCMC",sep="");
+if (length(unique(character_rate_partitions))>1)	{
+	filename_ss <- paste(filename_ss,"_Rate_Partitioned",sep="");
+	filename_mcmc <- paste(filename_mcmc,"_Rate_Partitioned",sep="");
+	}
 if (fbd_parameterization_script=="")	{
 #	filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_Analysis.Rev",sep="");
-	filename <- paste(filename,"_Analysis.Rev",sep="");
+	filename_ss <- paste(filename_ss,"_Analysis.Rev",sep="");
+	filename_mcmc <- paste(filename_mcmc,"_Analysis.Rev",sep="");
 	} else	{
 #	filename <- paste(paste(write_scripts_directory,analysis_name,sep=""),"_FBD_Analysis.Rev",sep="");
-	filename <- paste(filename,"_FBD_Analysis.Rev",sep="");
+	filename_ss <- paste(filename_ss,"_FBD_Analysis.Rev",sep="");
+	filename_mcmc <- paste(filename_mcmc,"_FBD_Analysis.Rev",sep="");
 	}
-write(revbayes_babble,file=filename);
+write(revbayes_stone_babble,file=filename_ss);
+write(revbayes_mcmc_babble,file=filename_mcmc);
 #write(revbayes_babble,file=paste(paste(local_directory,analysis_name,sep=""),"_Partitioned_FBD_Analysis.Rev",sep=""));
 #revbayes_babble <- scribio_Rev_Bayes_script_for_partitioned_character_data(analysis_name,initial_data,matrix_file_names,state_numbers,state_ordering,write_scripts_directory=write_scripts_directory,fbd_parameterization_script,extant_file,set_wdir,output_file_lead="output/",script_file_lead="scripts/",no_runs=4);
 }
@@ -2600,6 +2879,18 @@ write(revbayes_babble,file=filename);
 #revbayes_babble <- scribio_Rev_Bayes_script_for_partitioned_character_data(analysis_name,initial_data,matrix_file_names,state_numbers,state_ordering,write_scripts_directory=write_scripts_directory,fbd_parameterization_script,extant_file,set_wdir,output_file_lead="output/",script_file_lead="scripts/",no_runs=4);
 }
 
+# taxon_name <- "'Gyrocystis' platessa";
+newickify_taxon_name <- function(taxon_name)	{
+molecularized_name <- strsplit(taxon_name,split="")[[1]];
+if (sum(molecularized_name %in% newick_verbotten)==0)	{
+	return(gsub(" ","_",taxon_name));
+	} else if (molecularized_name[1]!="\'")	{
+	return(paste(c("'",molecularized_name,"'"),collapse=""));
+	} else	{
+	return(taxon_name);
+	}
+}
+
 accio_state_symbols <- function(n_states)	{
 state_symbols <- (1:n_states)-1;
 state_symbols[state_symbols>=10] <- letter_states[state_symbols[state_symbols>=10]-9];
@@ -2610,7 +2901,8 @@ return(state_symbols);
 ##### ROUTINES TO DOWNLOAD, CLEAN & ORGANIZE PALEODB DATA #######
 
 # get basic stratigraphic information that RevBayes demands
-accio_paleodb_data_for_Rev_Bayes <- function(otu_names,analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa=T,taxon_level,onset,end,basic_environments=c("marine","unknown","terrestrial"),time_scale,zone_database,fossilworks_collections="",paleodb_rock_reidentifications="",paleodb_collection_edits="",lump_subgenera=F,species_only=T)	{
+# updated 2020-05-02
+accio_paleodb_data_for_Rev_Bayes <- function(otu_names,analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa=T,taxon_level,onset,end,basic_environments=c("marine","unknown","terrestrial"),paleogeography="scotese",time_scale,zone_database,fossilworks_collections="",paleodb_rock_reidentifications="",paleodb_collection_edits="",lump_subgenera=F,species_only=T)	{
 # otu_names: vector giving taxon names (matching those of the original nexus file)	
 # study: name of the study (e.g., "Phacophida" or "Ordovician_Bucanids")	
 # control_taxon: name of a taxonomic group that can be used as a control for sampling and diversification estimates
@@ -2624,7 +2916,7 @@ accio_paleodb_data_for_Rev_Bayes <- function(otu_names,analysis_name,local_direc
 # paleodb_collection_edits: data.frame providing other corrections to unedittable PaleoDB collections.
 
 print("Getting occurrence & collection data for study taxa....")
-data_compendium <- accio_occurrences_for_list_of_taxa(taxon_list=otu_names,lump_subgenera,species_only);
+data_compendium <- accio_occurrences_for_list_of_taxa(taxon_list=otu_names,lump_subgenera,species_only,paleogeography=paleogeography);
 data_compendium$occurrences_compendium$flags <- simplify2array(data_compendium$occurrences_compendium$flags);
 ingroup_finds <- evanesco_na_from_matrix(data=data_compendium$occurrences_compendium,replacement = "");
 #ingroup_finds[match(991528,ingroup_finds$occurrence_no),]
@@ -2680,7 +2972,7 @@ write.csv(ingroup_finds,file=paste(local_directory,analysis_name,"_Finds.csv",se
 
 if (control_taxon[1]!="")	{
 	print("Getting occurrence & collection data for control taxa....");
-	control_data <- accio_data_for_control_groups_to_seed_FBD_analyses(control_taxon,onset,end,basic_environments,species_only = T);
+	control_data <- accio_data_for_control_groups_to_seed_FBD_analyses(control_taxon,onset,end,basic_environments,species_only = T,paleogeography=paleogeography);
 	control_collections <- evanesco_na_from_matrix(control_data$control_collections,"");
 	control_occurrences <- evanesco_na_from_matrix(control_data$control_occurrences,"");
 	control_occurrences <- evanesco_indeterminate_species(paleodb_finds = control_occurrences);
@@ -2727,7 +3019,7 @@ if (control_taxon[1]!="")	{
 #if (!is.null(zone_taxa))	{
 if (zone_taxa[1]!="")	{
 	print("Getting occurrence data for zone taxa occupying the same collections....")
-	zone_taxa_data <- accio_data_for_control_groups_to_seed_FBD_analyses(control_taxon=zone_taxa,onset,end,basic_environments,species_only = T)
+	zone_taxa_data <- accio_data_for_control_groups_to_seed_FBD_analyses(control_taxon=zone_taxa,onset,end,basic_environments,species_only=T,paleogeography=paleogeography)
 	#zone_collections <- zone_taxa_data$control_collections[zone_taxa_data$control_collections$collection_no %in% control_collections$collection_no];
 	zone_occurrences <- zone_taxa_data$control_occurrences[zone_taxa_data$control_occurrences$collection_no %in% control_collections$collection_no,];
 	write.csv(zone_taxa_data$control_occurrences[zone_taxa_data$control_occurrences$collection_no %in% control_collections$collection_no,],
@@ -3007,7 +3299,7 @@ if (!is.na(match("THIS REQUEST RETURNED NO RECORDS",fetched)))	{
 }
 
 # get collections for all taxa in vector taxon_list
-accio_occurrences_for_list_of_taxa <- function(taxon_list,lump_subgenera=F,species_only=T)	{
+accio_occurrences_for_list_of_taxa <- function(taxon_list,lump_subgenera=F,species_only=T,paleogeography="scotese")	{
 # remove any funny symbols from taxon names
 taxon_list <- sapply(taxon_list,scourgify_taxon_names);
 ntaxa <- length(taxon_list);
@@ -3060,13 +3352,13 @@ if (!is.null(occurrences_compendium))	{
 	c <- 0;
 	collection_compendium <- c();
 	while (c < length(collection_no))	{
-	c <- c+1;
+		c <- c+1;
 #	for (c in 1:length(collection_no))	{
 		if (is.null(collection_compendium))	{
 #	if (c==1)	{
-			collection_compendium <- accio_single_locality_info(collection_no=collection_no[c]);
+			collection_compendium <- accio_single_locality_info(collection_no=collection_no[c],paleogeography=paleogeography);
 			} else	{
-			collection_compendium <- rbind(collection_compendium,accio_single_locality_info(collection_no=collection_no[c]));
+			collection_compendium <- rbind(collection_compendium,accio_single_locality_info(collection_no=collection_no[c],paleogeography=paleogeography));
 			}
 		}
 
@@ -3094,16 +3386,21 @@ return(output);
 # updated 2020-02-20
 # updated 2020-03-05
 # updated 2020-04-12
-accio_PaleoDB_data_from_chosen_nexus_file <- function(onset,end,rock_unit_databases,chronostratigraphic_databases,paleodb_fixes,control_taxon="",zone_taxa="",taxon_level="species",basic_environments=c("marine","unknown","terrestrial"),time_scale_stratigraphic_scale="stage",temporal_precision=0.05,lump_subgenera=F,analysis_name="",local_directory="",exclude_uncertain_taxa=T,species_only=T,bogarted=F,taxon_subset_file=F)	{
+# updated 2020-04-30
+# updated 2020-05-02
+accio_PaleoDB_data_from_chosen_nexus_file <- function(onset,end,rock_unit_databases,chronostratigraphic_databases,paleodb_fixes,control_taxon="",zone_taxa="",taxon_level="species",basic_environments=c("marine","unknown","terrestrial"),paleogeography="scotese",time_scale_stratigraphic_scale="International",temporal_precision=0.05,lump_subgenera=F,analysis_name="",local_directory="",exclude_uncertain_taxa=T,species_only=T,bogarted=F,taxon_subset_file=F)	{
 #### PART 0: Commence ####
+if (time_scale_stratigraphic_scale=="Standard")
+	time_scale_stratigraphic_scale <- "International";
 print("This program will read a Nexus file and download collections and occurrences from the Paleobiology Database");
 print("	  (https://www.paleobiodb.org/) for stratigraphic data and then start refining/cleaning/updating those data");
 print("	  with updated time scales and biozonation information.");
 print("");
-print("NOTE: The Paleobiology Database should always be considered a STARTING point for these data. This program will also");
-print("   output summaries of the data that you should check. We encourage you to contribute improvements to these data");
-print("   (including collections, occurrences and taxonomy) to the Paleobiology Database.  Improvements to the stratigraphic");
-print("   database used to refine PaleoDB data should be sent to pjwagner@gmail.com");
+print("NOTE: The Paleobiology Database should always be considered a STARTING point for these data. Part of what I have");
+print("   designed the output to do is to let you vett occurrence and collection data for your study group.  We encourage");
+print("   you to contribute improvements to these data (including collections, occurrences and taxonomy) to the Paleobiology");
+print("   Database (see https://www.youtube.com/channel/UCHxfFXYjYFotJmo_fNTSKJg for tutorials.)  Improvements to the");
+print("   stratigraphic database used to refine PaleoDB data should be sent to pjwagner@gmail.com");
 print("");
 if (taxon_level=="genus" && !lump_subgenera)
 	taxon_level <- "subgenus";
@@ -3111,9 +3408,9 @@ if (taxon_level=="genus" && !lump_subgenera)
 #if (taxon_subset_file && tolower(taxon_subset_file)!="n")	{
 if (taxon_subset_file)	{
 	print("Choose file giving subset of taxa that you wish to be analyzed");
+	flush.console();
 	for (i in 1:100)	j <- 1;
 	} else	{   
-	print("Choose the nexus file that you wish to analyze: ");
 	taxa_subset <- "";
 	}
 #if (taxon_subset_file!="" && tolower(taxon_subset_file)!="n")	{
@@ -3123,7 +3420,6 @@ if (taxon_subset_file)	{
 	taxa_subset <- read.table(taxon_subset_file_name,header = F,stringsAsFactors=hell_no)[,1];
 	verboten <- c("taxon","taxa","species","genus","otu");
 	taxa_subset <- taxa_subset[!taxa_subset %in% verboten];
-	print("Choose the nexus file that you wish to analyze: ");
 	}
 
 basic_data <- accio_data_from_chosen_nexus_file();
@@ -3168,14 +3464,13 @@ zone_database <- subset(zone_database,zone_database$ma_ub>=time_scale$ma_ub[matc
 
 #### PART 3: GET INFORMATION NEEDED TO DOWNLOAD, 'CLEAN' AND ANALYZE STRATIGRAPHIC DATA  ####
 compendium <- accio_updated_taxonomy_for_analyzed_taxa(otu_names=otu_names,local_directory=local_directory,study=analysis_name);
+
 if (bogarted)	{
 	print("Choose the file with your private stash information: ");
-	for (i in 1:100)
-		j <- i;
-	}
-if (bogarted)	{
+	flush.console();
 	bogarted_info <- file.choose();
 	print("Reading your private stash now....");
+	flush.console();
 #	bogarted_finds <- utils::read.csv(file = read.(bogarted_info), header = TRUE,stringsAsFactors=FALSE,encoding = "UTF-8");
 	bogarted_finds <- read.csv(file=bogarted_info,header = T,stringsAsFactors=hell_no,encoding = "UTF-8");
 	bogarted_finds <- evanesco_na_from_matrix(bogarted_finds,replacement="");
@@ -3222,9 +3517,9 @@ if (bogarted)	{
 	bogarted_taxa <- unique(bogarted_finds$identified_name);
 	for (bt in 1:length(bogarted_taxa))	{
 		btn <- match(bogarted_taxa[bt],compendium$taxon_name);
-		if (is.na(btn))	{
+		if (is.na(btn))
 			btn <- match(bogarted_taxa[bt],otu_names);
-			}
+		
 		if (!is.na(btn))	{
 			this_taxon <- subset(bogarted_finds,bogarted_finds$identified_name==bogarted_taxa[bt]);
 #			compendium$n_occs[btn] <- compendium$n_occs[btn] + sum(bogarted_finds$identified_name==bogarted_taxa[bt]);
@@ -3250,7 +3545,7 @@ if (sum(compendium$n_occs==0)>0)	{
 	missing_taxa_rows <- match(taxon_name,compendium$taxon_name);
 	taxon_list <- genera <- unique(sapply(taxon_name,diffindo_genus_names_from_species_names));
 	if (length(taxon_list)>0)	{
-		taxonomyless_finds <- accio_occurrences_for_list_of_taxa(taxon_list);
+		taxonomyless_finds <- accio_occurrences_for_list_of_taxa(taxon_list,paleogeography=paleogeography);
 		if (is.data.frame(taxonomyless_finds$collection_compendium))
 			for (mt in 1:length(missing_taxa))
 				compendium$n_occs[missing_taxa_rows[mt]] <- sum(taxonomyless_finds$occurrences_compendium$identified_name==taxon_name[mt]);
@@ -3291,41 +3586,31 @@ if (abs(time_scale$ma_lb[match(onset,time_scale$interval)])<max(abs(compendium$f
 		}
 	}
 
-if (abs(time_scale$ma_lb[match(end,time_scale$interval)])>min(abs(compendium$lastapp_min_ma)))	{
+if (abs(time_scale$ma_ub[match(end,time_scale$interval)])>min(abs(compendium$firstapp_max_ma)))	{
 	stage_info <- accio_stage_info();
-	stage_info <- subset(stage_info,abs(stage_info$end)<min(abs(compendium$lastapp_min_ma)));
-	bb <- 1+sum(stage_info$end>min(abs(compendium$lastapp_min_ma)));
+	stage_info <- subset(stage_info,abs(stage_info$end)<min(abs(compendium$firstapp_max_ma)));
+	bb <- 1+sum(stage_info$end>min(abs(compendium$firstapp_max_ma)));
 	stage_info <- stage_info[order(-abs(stage_info$onset)),];
 	end <- stage_info$interval[bb];
-	if (!is.na(match(end,c("Stage 2","Stage 3","Stage 4"))))	{
+	if (!is.na(match(end,c("Stage 2","Stage 3","Stage 4"))))
 		end <- c("Tommotian","Nangaoian","Duyunian")[match(end,c("Stage 2","Stage 3","Stage 4"))]
-		}
-		
-#	if (nrow(stage_info)>1)	{
-#		end <- stage_info$interval[2];
-#		} else	{
-#		end <- stage_info$interval[1];
-#		}
 	}
 
 ## get paleodb data!!!!
-paleodb_data <- accio_paleodb_data_for_Rev_Bayes(otu_names,analysis_name=analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa,taxon_level,onset,end,basic_environments,time_scale,zone_database,fossilworks_collections,paleodb_rock_reidentifications,paleodb_collection_edits,lump_subgenera,species_only);
+paleodb_data <- accio_paleodb_data_for_Rev_Bayes(otu_names,analysis_name=analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa,taxon_level,onset,end,basic_environments,paleogeography,time_scale,zone_database,fossilworks_collections,paleodb_rock_reidentifications,paleodb_collection_edits,lump_subgenera,species_only);
 control_collections <- unique(paleodb_data$control_collections);
 control_occurrences <- unique(paleodb_data$control_occurrences);
-#control_collections$collection_no <- as.numeric(control_collections$collection_no);
-#control_occurrences$collection_no <- as.numeric(control_occurrences$collection_no);
-#control_occurrences$occurrence_no <- is.numeric(control_occurrences$occurrence_no);
+
 if (bogarted)	{
 	print("Adding your private stash to the PaleoDB data....");
-	bogarted_finds$my_collection_no <- as.numeric(bogarted_finds$my_collection_no);
+	if (!is.na(match("my_collection_no",colnames(bogarted_finds))))
+		bogarted_finds$my_collection_no <- as.numeric(bogarted_finds$my_collection_no);
 	bogarted_finds$collection_no[bogarted_finds$collection_no==""] <- 0;
 	bogarted_finds$collection_no <- as.numeric(bogarted_finds$collection_no);
 	bogarted_finds$collection_no[bogarted_finds$collection_no==0] <- 
 		bogarted_finds$my_collection_no[bogarted_finds$collection_no==0]+ceiling(max(control_collections$collection_no)/10^(floor(log10(max(control_collections$collection_no)))-1))*10^(floor(log10(max(control_collections$collection_no)))-1);
 
-#	colnames(bogarted_finds)[match("collection_no",colnames(bogarted_finds))] <- "my_collection_no"
-#	colnames(bogarted_finds)[match("paleodb_collection_no",colnames(bogarted_finds))] <- "collection_no"
-	column_matches <- match(colnames(bogarted_finds),colnames(control_collections))
+	column_matches <- match(colnames(bogarted_finds),colnames(control_collections));
 	bogarted_coll_info_in_paleodb <- (1:ncol(bogarted_finds))[!is.na(column_matches)];
 	column_matches <- column_matches[!is.na(column_matches)];
 	new_paleodb_coll <- control_collections[1:length(unique(bogarted_finds$collection_no)),];
@@ -3341,11 +3626,17 @@ if (bogarted)	{
 	control_collections <- rbind(control_collections,new_paleodb_coll);
 	
 	# set up occcurrences in two steps;
-	# first get collection part of occurrences
+	# edit already downloaded occurrences
+	emended_paleodb_finds <- subset(bogarted_finds,bogarted_finds$occurrence_no %in% control_occurrences$occurrence_no);
+	edit_paleodb_rows <- match(emended_paleodb_finds$occurrence_no,control_occurrences$occurrence_no);
 	column_matches <- match(colnames(bogarted_finds),colnames(control_occurrences))
-	bogarted_occr_info_in_paleodb <- (1:ncol(bogarted_finds))[!is.na(column_matches)];
 	column_matches <- column_matches[!is.na(column_matches)];
-	new_paleodb_occr <- control_occurrences[1:nrow(bogarted_finds),];
+	matched_columns <- (1:ncol(emended_paleodb_finds))[!is.na(match(colnames(bogarted_finds),colnames(control_occurrences)))];
+	control_occurrences[edit_paleodb_rows,column_matches] <- emended_paleodb_finds[,matched_columns];
+	control_occurrences$accepted_name[edit_paleodb_rows] <- control_occurrences$accepted_name_orig[edit_paleodb_rows] <- emended_paleodb_finds$identified_name;
+	# add completely new finds
+	totally_boggy <- subset(bogarted_finds,!bogarted_finds$occurrence_no %in% control_occurrences$occurrence_no);
+	new_paleodb_occr <- control_occurrences[1:nrow(totally_boggy),];
 	for (nc in 1:ncol(new_paleodb_occr))	{
 		if (is.numeric(new_paleodb_occr[,nc]))	{
 			new_paleodb_occr[,nc] <- as.numeric(0);
@@ -3354,37 +3645,46 @@ if (bogarted)	{
 			new_paleodb_occr[,nc] <- as.character(new_paleodb_occr[,nc]);
 			}
 		}
-	new_paleodb_occr[,column_matches] <- bogarted_finds[,bogarted_occr_info_in_paleodb];
 	
+	new_paleodb_occr[,column_matches] <- totally_boggy[,matched_columns];
+
 	# now get the taxonomy part....
-	taxon <- bogarted_taxa;
-	for (tt in 1:length(bogarted_taxa))	{
+	totally_bogarted_taxa <- unique(totally_boggy$identified_name);
+	for (tt in 1:length(totally_bogarted_taxa))	{
 		if (tt==1)	{
-			bogarted_taxonomy <- revelio_taxonomy_for_one_taxon(taxon=bogarted_taxa[tt],settle=T);
+			bogarted_taxonomy <- revelio_taxonomy_for_one_taxon(taxon=totally_bogarted_taxa[tt],settle=T);
 			} else	{
-			bogarted_taxonomy <- rbind(bogarted_taxonomy,revelio_taxonomy_for_one_taxon(taxon=bogarted_taxa[tt],settle=T));
+			bogarted_taxonomy <- rbind(bogarted_taxonomy,revelio_taxonomy_for_one_taxon(taxon=totally_bogarted_taxa[tt],settle=T));
+			}
+		informal_taxon <- revelio_informal_taxa(taxon_name=totally_bogarted_taxa[tt]);
+		if (informal_taxon)	{
+			bogarted_taxonomy$taxon_name[tt] <- bogarted_taxonomy$accepted_name[tt] <- totally_bogarted_taxa[tt];
+			bogarted_taxonomy$accepted_rank[tt] <- "species";
 			}
 		}
-	bogarted_taxonomy$accepted_name[bogarted_taxonomy$taxon_name!=bogarted_taxa] <- bogarted_taxonomy$taxon_name[bogarted_taxonomy$taxon_name!=bogarted_taxa] <- bogarted_taxa[bogarted_taxonomy$taxon_name!=bogarted_taxa];
+	bogarted_taxonomy$accepted_name[bogarted_taxonomy$accepted_name!=totally_bogarted_taxa] <- totally_bogarted_taxa[bogarted_taxonomy$taxon_name!=totally_bogarted_taxa];
+	bogarted_taxonomy$taxon_name[bogarted_taxonomy$taxon_name!=totally_bogarted_taxa] <- totally_bogarted_taxa[bogarted_taxonomy$taxon_name!=totally_bogarted_taxa];
 	bogarted_taxonomy$accepted_rank[match(bogarted_taxonomy$accepted_rank,taxonomic_rank)>match(taxon_level,taxonomic_rank)] <- taxon_level;
 	bogarted_taxonomy <- evanesco_na_from_matrix(bogarted_taxonomy,replacement = "");
 	bogarted_taxonomy$record_type <- bogarted_taxonomy$flags <- bogarted_taxonomy$early_interval <- bogarted_taxonomy$late_interval <- NULL;
-	bogarted_row_to_paledob <- match(bogarted_finds$identified_name,bogarted_taxonomy$taxon_name);
+	bogarted_row_to_paledob <- match(totally_boggy$identified_name,bogarted_taxonomy$taxon_name);
 	paleodb_col_to_edit <- match(colnames(bogarted_taxonomy),colnames(control_occurrences));
 	paleodb_col_to_edit <- paleodb_col_to_edit[!is.na(paleodb_col_to_edit)];
 	bogarted_col_w_fix <- match(colnames(control_occurrences)[paleodb_col_to_edit],colnames(bogarted_taxonomy));
 	new_paleodb_occr[,paleodb_col_to_edit] <- bogarted_taxonomy[bogarted_row_to_paledob,bogarted_col_w_fix];
 	new_paleodb_occr$record_type <- control_occurrences$record_type[1];
+	new_paleodb_occr$accepted_name_orig <- new_paleodb_occr$accepted_name;
 	
-	#(1:nrow(control_occurrences))[is.na(as.numeric(control_occurrences$occurrence_no))]
-	new_paleodb_occr$occurrence_no <- (1:nrow(new_paleodb_occr))+10^ceiling(log10(max(control_occurrences$occurrence_no)))
+	new_paleodb_occr$occurrence_no <- (1:nrow(new_paleodb_occr))+(2*max(as.numeric(control_occurrences$occurrence_no)));
 	control_occurrences <- rbind(control_occurrences,new_paleodb_occr);
 	}
 
 this_taxon_rank <- c();
 for (tx in 1:length(otu_names))	{
 	# if species or subspecies
-	if (length((strsplit(otu_names[tx]," ")[[1]]))==2)	{
+	if (revelio_informal_taxa(taxon_name = otu_names[tx]))	{
+		this_taxon_rank <- c(this_taxon_rank,"species");
+		}	else if (length((strsplit(otu_names[tx]," ")[[1]]))==2)	{
 		second_name <- strsplit(otu_names[tx]," ")[[1]][2];
 		first_character <- strsplit(second_name,"")[[1]][1];
 		if (first_character=="(")	{
@@ -3438,7 +3738,7 @@ occ_colls <- sort(unique(control_occurrences$collection_no));
 missing_colls <- occ_colls[!occ_colls %in% control_collections$collection_no];
 if (length(missing_colls)>0)	{
 	for (mc in 1:length(missing_colls))	{
-		xxx <- accio_single_locality_info(missing_colls[mc]);
+		xxx <- accio_single_locality_info(missing_colls[mc],paleogeography=paleogeography);
 		if (!"direct_ma" %in% colnames(xxx))	{
 			xxx$direct_ma <- 0;
 			xxx$direct_ma_error <- xxx$direct_ma_method <- "";
@@ -3717,11 +4017,50 @@ if (sum(!unique(this_taxon_rank) %in% c("species","subspecies"))>0)	{
 	} else	{
 	xxx <- accio_stratigraphic_information_for_Rev_Bayes(taxa=otu_names,paleodb_finds = paleodb_finds,paleodb_collections = paleodb_collections,hierarchical_chronostrat = finest_chronostrat,taxon_rank = taxon_level,faux_recent = F);
 	}
+taxon_field <- this_taxon_rank;
+taxon_field[taxon_field %in% c("species","subspecies")] <- "accepted_name";
+this_taxon_field <- match(taxon_field,colnames(paleodb_finds));
+for (tx in 1:length(otu_names))	{
+	relv_collections <- match(paleodb_finds$collection_no[paleodb_finds[,this_taxon_field[tx]]==otu_names[tx]],paleodb_collections$collection_no);
+	occurrence_ages_sites <- data.frame(min=as.numeric(paleodb_collections$ma_ub[relv_collections]),max=as.numeric(paleodb_collections$ma_lb[relv_collections]),stringsAsFactors = hell_no);
+	occurrence_ages_sites <- occurrence_ages_sites[order(-occurrence_ages_sites$min,-occurrence_ages_sites$max),];
+	new_name <- c();
+	for (nn in 1:nrow(occurrence_ages_sites))	{
+		if (nrow(occurrence_ages_sites)>1)	{
+			new_name <- c(new_name,paste(otu_names[tx],nn,sep=""));
+			} else	{
+			new_name <- otu_names[tx];
+			}
+		}
+	new_site_occurrences <- data.frame(taxon=as.character(new_name),min=as.numeric(occurrence_ages_sites$min),max=as.numeric(occurrence_ages_sites$max),stringsAsFactors = hell_no);
+	if (tx==1)	{
+		otu_site_occurrences <- new_site_occurrences;
+		} else	{
+		otu_site_occurrences <- rbind(otu_site_occurrences,new_site_occurrences);
+		}
+
+	occurrence_ages_rocks <- unique(data.frame(min=as.numeric(paleodb_collections$ma_ub[relv_collections]),max=as.numeric(paleodb_collections$ma_lb[relv_collections]),rock_no=as.numeric(paleodb_collections$rock_no_sr[relv_collections]),stringsAsFactors = hell_no));
+	occurrence_ages_rocks <- occurrence_ages_rocks[order(-occurrence_ages_rocks$min,-occurrence_ages_rocks$max),];
+	new_name <- c();
+	for (nn in 1:nrow(occurrence_ages_rocks))	{
+		if (nrow(occurrence_ages_rocks)>1)	{
+			new_name <- c(new_name,paste(otu_names[tx],nn,sep=""));
+			} else	{
+			new_name <- otu_names[tx];
+			}
+		}
+	new_rock_occurrences <- data.frame(taxon=as.character(new_name),min=as.numeric(occurrence_ages_rocks$min),max=as.numeric(occurrence_ages_rocks$max),stringsAsFactors = hell_no);
+	if (tx==1)	{
+		otu_rock_occurrences <- new_rock_occurrences;
+		} else	{
+		otu_rock_occurrences <- rbind(otu_rock_occurrences,new_rock_occurrences);
+		}
+	}
 fossil_summaries <- xxx$fossil_information_detailed;
 fossil_summaries$taxon <- names(otu_names);
 #### Wrap it up ####
-output <- list(paleodb_finds,paleodb_collections,fossil_summaries,finest_chronostrat,missing_taxa);
-names(output) <- c("occurrences","collections","fossil_summaries","relv_time_scale","milk_carton_taxa");
+output <- list(paleodb_finds,paleodb_collections,fossil_summaries,otu_site_occurrences,otu_rock_occurrences,finest_chronostrat,missing_taxa);
+names(output) <- c("occurrences","collections","fossil_summaries","otu_site_occurrences","otu_rock_occurrences","relv_time_scale","milk_carton_taxa");
 
 return(output);
 }
@@ -3835,13 +4174,14 @@ if (nrow(collection_finds)>1)	{
 
 # get collections from a certain span of time that include a particular taxon or set of taxa
 # modified 2020-02-17
-accio_collection_data <- function(taxa,onset="Proterozoic",end="Holocene",basic_environments="terr,marine,unknown",standardize_members=FALSE,directory="",save_files=TRUE,species_only=FALSE,output_type=".csv") {
+# modified 2020-05-02
+accio_collection_data <- function(taxa,onset="Proterozoic",end="Holocene",basic_environments="terr,marine,unknown",paleogeography="scotese",standardize_members=FALSE,directory="",save_files=TRUE,species_only=FALSE,output_type=".csv") {
 taxa <- paste(taxa, collapse = ",");
 taxa <- gsub(" ","%20",taxa);
 if (!is.na(match("terrestrial",basic_environments)))
 	basic_environments[match("terrestrial",basic_environments)] <- "terr";
 basic_environments <- paste(basic_environments,collapse=",");
-http <- paste("http://paleobiodb.org/data1.2/colls/list.csv?base_name=",taxa,"&interval=",onset,",",end,"&envtype=",basic_environments,"&show=loc,paleoloc,strat,stratext,timebins,timecompare,lith,lithext,env,geo,methods,resgroup,ref,refattr,ent,entname,crmod",sep="");
+http <- paste("http://paleobiodb.org/data1.2/colls/list.csv?base_name=",taxa,"&interval=",onset,",",end,"&envtype=",basic_environments,"&pgm=",paleogeography,"&show=loc,paleoloc,strat,stratext,timebins,timecompare,lith,lithext,env,geo,methods,resgroup,ref,refattr,ent,entname,crmod",sep="");
 #http <- paste("http://paleobiodb.org/data1.2/colls/list.csv?base_name=",taxa,"&interval=",onset,",",end,"&show=loc,paleoloc,strat,stratext,refattr,entname,lith,env,crmod",sep="");
 fetch <- RCurl::getURL(http);
 collections <- utils::read.csv(text = fetch, header = TRUE, stringsAsFactors=hell_no);
@@ -3954,19 +4294,20 @@ return(collections)
 }
 
 # get collections data for one locality
-accio_single_locality_info <- function(collection_no)	{
-httpC <- paste("http://paleobiodb.org/data1.2/colls/list.csv?id=",collection_no,"&show=loc,paleoloc,strat,stratext,timebins,timecompare,lith,lithext,env,geo,methods,resgroup,ref,refattr,ent,entname,crmod",sep="");
-accio <- RCurl::getURL(httpC)
-coll_info <- data.frame(utils::read.csv(text = accio, header = TRUE, stringsAsFactors=hell_no))
-coll_info <- evanesco_na_from_vector(coll_info,"")
-return(coll_info)
+# modified 2020-05-02
+accio_single_locality_info <- function(collection_no,paleogeography="scotese")	{
+httpC <- paste("http://paleobiodb.org/data1.2/colls/list.csv?id=",collection_no,"&pgm=",paleogeography,"&show=loc,paleoloc,strat,stratext,timebins,timecompare,lith,lithext,env,geo,methods,resgroup,ref,refattr,ent,entname,crmod",sep="");
+accio <- RCurl::getURL(httpC);
+coll_info <- data.frame(utils::read.csv(text = accio, header = TRUE, stringsAsFactors=hell_no));
+coll_info <- evanesco_na_from_vector(coll_info,"");
+return(coll_info);
 }
 
 # organize paleodb data for basic diversification analyses.
-accio_data_for_control_groups_to_seed_FBD_analyses <- function(control_taxon,onset="Cambrian",end="Holocene",basic_environments="terr,marine,unknown",species_only=T)	{
+accio_data_for_control_groups_to_seed_FBD_analyses <- function(control_taxon,onset="Cambrian",end="Holocene",basic_environments="terr,marine,unknown",paleogeography="scotese",species_only=T)	{
 control_finds <- accio_occurrence_data(taxa=control_taxon,onset=onset,end=end,basic_environments=basic_environments,species_only=species_only,clean_entered_taxa=T,
 					directory="",save_files=F,output_type=".csv");
-control_collections <- accio_collection_data(taxa=control_taxon,onset,end,basic_environments,standardize_members=F,
+control_collections <- accio_collection_data(taxa=control_taxon,onset,end,basic_environments,paleogeography=paleogeography,standardize_members=F,
 					directory="",save_files=F,species_only=F,output_type=".csv");
 
 control_collections <- control_collections[control_collections$collection_no %in% unique(control_finds$collection_no),];
@@ -6941,6 +7282,15 @@ taxon_name <- gsub("  " ," ",taxon_name);
 taxon_name <- paste(strsplit(taxon_name,split=" ")[[1]][!strsplit(taxon_name,split=" ")[[1]] %in% paste(LETTERS,".",sep="")],collapse=" ");
 #paste(LETTERS,".",sep="");
 return(taxon_name)
+}
+
+revelio_informal_taxa <- function(taxon_name)	{
+molecularized_name <- strsplit(taxon_name,split="")[[1]];
+if ((sum(molecularized_name %in% ".")+sum(molecularized_name %in% as.character(0:9)))>0)	{
+	return(T);
+	} else	{
+	return(F);
+	}
 }
 
 revelio_uncertain_species_assignments <- function(taxon_name)	{
