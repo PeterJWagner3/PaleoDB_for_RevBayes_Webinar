@@ -36,28 +36,24 @@ control_taxon <- "Trilobita";								# Control groups for sampling & diversifica
 zone_taxa <- c("Conodonta","Graptolithina");				# Groups with species used for major biostratigraphic schemes: these will restrict collection ages
 basic_environments <- c("marine","unknown");				# "marine", "terr" (terrestrial) & "unknown" are the basic options
 time_scale_stratigraphic_scale <- "Stage Slice";			# this will set the stratigraphic scale that we'll use
-bogarted <- T;												# if true, then you wll be prompted for a file of additional occurrences
 temporal_precision <- 0.1;									# level of precision for trying to estimate ages;
-test_run <- accio_PaleoDB_data_from_chosen_nexus_file(onset=onset,end=end,rock_unit_databases=rock_unit_databases,chronostratigraphic_databases=chronostratigraphic_databases,paleodb_fixes=paleodb_fixes,control_taxon=control_taxon,zone_taxa=zone_taxa,basic_environments=basic_environments,time_scale_stratigraphic_scale=time_scale_stratigraphic_scale,analysis_name=analysis_name,bogarted=bogarted,temporal_precision=temporal_precision);
+save_files <- F;											# if true, a lot of files will be output
+flexicalymene <- accio_PaleoDB_data_from_chosen_nexus_file(onset=onset,end=end,rock_unit_databases=rock_unit_databases,chronostratigraphic_databases=chronostratigraphic_databases,paleodb_fixes=paleodb_fixes,control_taxon=control_taxon,zone_taxa=zone_taxa,basic_environments=basic_environments,time_scale_stratigraphic_scale=time_scale_stratigraphic_scale,analysis_name=analysis_name,temporal_precision=temporal_precision,save_files=save_files);
 
-analysis_name <- "Olenidae";
-onset <- "Cambrian";										# the earliest collections to sample: note that if any of your taxa last appear before this, then it will be adjusted
-end <- "Ordovician";										# the latest collections to sample: note that if any of your taxa first appear after this, then it will be adjusted
-control_taxon <- "Trilobita";								# Control groups for sampling & diversification
-zone_taxa <- c("Conodonta","Graptolithina");				# Groups with species used for major biostratigraphic schemes: these will restrict collection ages
-basic_environments <- c("marine","unknown");				# "marine", "terr" (terrestrial) & "unknown" are the basic options
-time_scale_stratigraphic_scale <- "Stage Slice";			# this will set the stratigraphic scale that we'll use
-bogarted <- F;												# if true, then you wll be prompted for a file of additional occurrences
-temporal_precision <- 0.1;									# level of precision for trying to estimate ages;
-test_run <- accio_PaleoDB_data_from_chosen_nexus_file(onset=onset,end=end,rock_unit_databases=rock_unit_databases,chronostratigraphic_databases=chronostratigraphic_databases,paleodb_fixes=paleodb_fixes,control_taxon=control_taxon,zone_taxa=zone_taxa,basic_environments=basic_environments,time_scale_stratigraphic_scale=time_scale_stratigraphic_scale,analysis_name=analysis_name,bogarted=bogarted,temporal_precision = temporal_precision);
+bogarted <- T;
+flexicalymene <- accio_PaleoDB_data_from_chosen_nexus_file(onset=onset,end=end,rock_unit_databases=rock_unit_databases,chronostratigraphic_databases=chronostratigraphic_databases,paleodb_fixes=paleodb_fixes,control_taxon=control_taxon,zone_taxa=zone_taxa,basic_environments=basic_environments,time_scale_stratigraphic_scale=time_scale_stratigraphic_scale,analysis_name=analysis_name,temporal_precision=temporal_precision,save_files=save_files,bogarted=bogarted);
 
-analysis_name <- "Caenanopliinae";
-onset <- "Devonian";										# the earliest collections to sample: note that if any of your taxa last appear before this, then it will be adjusted
-end <- "Induan";											# the latest collections to sample: note that if any of your taxa first appear after this, then it will be adjusted
-control_taxon <- "Brachiopoda";								# this will be used for initial sampling estiates
-zone_taxa <- c("Conodonta","Foraminifera");					# this will be used to tie down collection ages
-basic_environments <- c("marine","unknown");				# "marine", "terr" (terrestrial) & "unknown" are the basic options
+
+#bogarted <- T;												# if true, then you wll be prompted for a file of additional occurrences
+analysis_name <- "Lycopoda";
+onset <- "Silurian";										# the earliest collections to sample: note that if any of your taxa last appear before this, then it will be adjusted
+end <- "Carboniferous";										# the latest collections to sample: note that if any of your taxa first appear after this, then it will be adjusted
+control_taxon <- "Plantae";									# Control groups for sampling & diversification
+zone_taxa <- c("");											# Groups with species used for major biostratigraphic schemes: these will restrict collection ages
+basic_environments <- c("terr","marine","unknown");			# "marine", "terr" (terrestrial) & "unknown" are the basic options
 time_scale_stratigraphic_scale <- "Stage Slice";			# this will set the stratigraphic scale that we'll use
-bogarted <- F;												# if true, then you wll be prompted for a file of additional occurrences
 temporal_precision <- 0.1;									# level of precision for trying to estimate ages;
-test_run <- accio_PaleoDB_data_from_chosen_nexus_file(onset=onset,end=end,rock_unit_databases=rock_unit_databases,chronostratigraphic_databases=chronostratigraphic_databases,paleodb_fixes=paleodb_fixes,control_taxon=control_taxon,zone_taxa=zone_taxa,basic_environments=basic_environments,time_scale_stratigraphic_scale=time_scale_stratigraphic_scale,analysis_name=analysis_name,bogarted=bogarted,temporal_precision = temporal_precision);
+bogarted <- F;												# if true, then you wll be prompted for a file of additional occurrences
+taxon_subset_file <- T;										# if true, then you wll be prompted for a file stating which OTUs to include
+salad <- accio_PaleoDB_data_from_chosen_nexus_file(onset=onset,end=end,rock_unit_databases=rock_unit_databases,chronostratigraphic_databases=chronostratigraphic_databases,paleodb_fixes=paleodb_fixes,control_taxon=control_taxon,zone_taxa=zone_taxa,basic_environments=basic_environments,time_scale_stratigraphic_scale=time_scale_stratigraphic_scale,analysis_name=analysis_name,taxon_subset_file=taxon_subset_file,temporal_precision=temporal_precision);
+
