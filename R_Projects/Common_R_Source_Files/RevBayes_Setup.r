@@ -3574,7 +3574,9 @@ if (bogarted)	{
 if (sum(compendium$n_occs==0)>0)	{
 	missing_taxa <- subset(compendium,compendium$n_occs==0);
 	missing_taxa <- subset(missing_taxa,missing_taxa$accepted_name=="?");
-	taxon_name <- missing_taxa$taxon_name;
+	taxon <- missing_taxa$taxon_name
+	formal_taxa <- (1:nrow(missing_taxa))[!sapply(taxon,revelio_informal_taxa)];
+	taxon_name <- missing_taxa$taxon_name[formal_taxa];
 	missing_taxa_rows <- match(taxon_name,compendium$taxon_name);
 	taxon_list <- genera <- unique(sapply(taxon_name,diffindo_genus_names_from_species_names));
 	if (length(taxon_list)>0)	{
@@ -7016,7 +7018,7 @@ accio_updated_taxonomy_for_analyzed_taxa <- function(otu_names,local_directory="
 taxon <- otu_names;
 print("Getting taxonomic data....")
 initial_compendium <- data.frame(base::t(sapply(taxon,revelio_taxonomy_for_one_taxon)),stringsAsFactors=hell_no);
-revelio_taxonomy_for_one_taxon(taxon="Nimravus brachyops")
+#revelio_taxonomy_for_one_taxon(taxon="Nimravus brachyops")
 initial_compendium <- evanesco_na_from_matrix(initial_compendium,"");
 compendium_headers <- colnames(initial_compendium);
 taxon_compendium <- data.frame(array("",dim=dim(initial_compendium)),stringsAsFactors=hell_no);
@@ -7033,11 +7035,17 @@ for (cn in 1:ncol(initial_compendium))	{
 		taxon_compendium[is.na(taxon_compendium[,cn]),cn] <- "";
 		}
 	}
-#for (rn in 1:nrow(initial_compendium))
-#	for (cn in 1:ncol(initial_compendium))
-#		taxon_compendium[rn,cn] <- as.character(initial_compendium[rn,cn]);
-#taxon_compendium <- evanesco_na_from_matrix(taxon_compendium,replacement="");
-#colnames(taxon_compendium)
+
+if (sum(taxon_compendium$taxon_rank=="")>0)	{
+	unranked <- subset(taxon_compendium,taxon_compendium$taxon_rank=="");
+	taxon_name <- unranked$taxon_name;
+	informals <- sapply(taxon_name,revelio_informal_taxa);
+	if (sum(informals)>0)	{
+		specials <- (1:nrow(unranked))[informals];
+		taxon_compendium$accepted_rank[match(unranked$taxon_name,taxon_compendium$taxon_name)] <- "species";
+		}
+	}
+
 missing_taxa_info <- subset(taxon_compendium,taxon_compendium$accepted_name=="?");
 found_taxa_info <- subset(taxon_compendium,taxon_compendium$n_occs>0);
 
