@@ -3440,6 +3440,7 @@ if (taxon_level=="genus" && !lump_subgenera)
 if (taxon_subset_file)	{
 	print("Choose file giving subset of taxa that you wish to be analyzed");
 	flush.console();
+	Sys.sleep(zzzz);
 	for (i in 1:100)	j <- 1;
 	} else	{   
 	taxa_subset <- "";
@@ -3458,9 +3459,12 @@ otu_names_used <- basic_data$OTUs;
 taxon_names <- otu_names_used[!tolower(otu_names_used) %in% c("outgroup","out")];
 otu_names <- sapply(taxon_names,scourgify_taxon_names);
 if (taxa_subset[1]=="")	{
+	outgroup_taxa <- otu_names_used[basic_data$Outgroup];
 	ingroup_taxa <- otu_names[!(1:length(otu_names)) %in% basic_data$Outgroup];
 	} else	{
+	outgroup_taxa <- otu_names_used[basic_data$Outgroup];
 	ingroup_taxa <- taxa_subset[(1:length(taxa_subset))[!taxa_subset %in% outgroup_taxa]];
+	otu_names <- otu_names[otu_names %in% taxa_subset];
 	}
 # we now have all of the information that we need for the character-based part of FBD analyses.
 # However, let's see if there are any taxa that belong to the ingroup-clade that are excluded!
