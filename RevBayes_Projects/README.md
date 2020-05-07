@@ -1,4 +1,4 @@
-# RevBayes_Script_Setups
+# RevBayes_Script_Setups (last modified 07-04-2020)
 R Programs for generating RevBayes scripts &amp; appropriate data files
 
 RevBayes_Setup.r will generate RevBayes scripts and appropriate data files that partition characters by numbers of states and general character evolution models.  However, the generated RevBayes scripts will require some editing and/or verification before they can be used on your computer.  There are two sources of editing that you will need to do.  The first concerns the directories invoked by the scripts.  Open the file “Cincta_FBD_Analysis_Strict_Clock.Rev.”  The first line:
