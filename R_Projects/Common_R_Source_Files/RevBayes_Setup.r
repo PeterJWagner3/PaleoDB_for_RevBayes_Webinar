@@ -2104,7 +2104,7 @@ fbd_script <- c(fbd_script,"\t}");
 fbd_script <- c(fbd_script,"");
 fbd_script <- c(fbd_script,"#### Set up deterministic variables for output purposes only  ####");
 fbd_script <- c(fbd_script,"fbd_p:=origination_rate;\t\t# origination rate for output");
-fbd_script <- c(fbd_script,"fbd_q:=origination_rate;\t\t# extinction rate for output");
+fbd_script <- c(fbd_script,"fbd_q:=extinction_rate;\t\t# extinction rate for output");
 fbd_script <- c(fbd_script,"fbd_r:=psi;\t\t# sampling rate for output");
 fbd_script <- c(fbd_script,"completeness := psi/(extinction_rate+psi);");
 fbd_script <- c(fbd_script,"diversification := speciation_rate - extinction_rate;");
