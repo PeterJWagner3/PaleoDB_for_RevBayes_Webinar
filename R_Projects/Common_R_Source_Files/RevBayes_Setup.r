@@ -10,10 +10,11 @@ INAP <- -22;
 hell_no <- F;
 taxonomic_rank <- c("subspecies","species","subgenus","genus","tribe","subfamily","family");
 uncertains <- c("cf.","aff.","ex_gr.");
-missing_data_assignment <- c("NP","NO","NC","NF","","coordinates not computable using this model");
+missing_data_assignment <- c("NP","NO","NC","NF","NG","","coordinates not computable using this model");
 paleodb_numeric_fields <- c("no","ma","size","occs","geoplate");
 newick_verbotten <- c(".","?","\"","\'");
 letter_states <- LETTERS[!LETTERS %in% c("I","O")];
+zzzz <- 0.25;
 
 #dummy_finds <- data.frame()
 #c("occurrence_no","record_type","reid_no","flags","collection_no","identified_name","identified_rank","identified_no","difference","accepted_name","accepted_rank","accepted_no","early_interval","late_interval","max_ma","min_ma","ref_author","ref_pubyr","reference_no","phylum","phylum_no","class","class_no","order","order_no","family","family_no","genus","genus_no","subgenus_no","occurrence_comments","authorizer","enterer","modifier","abund_value","abund_unit")
@@ -657,6 +658,7 @@ accio_data_from_chosen_nexus_file <- function(polymorphs=T, UNKNOWN=-11, INAP=-2
 #print("Choose the nexus file you with to analyze: ");
 print("Choose the nexus file that you wish to analyze: ");
 flush.console();
+Sys.sleep(zzzz);
 nexus_file_name <- file.choose();
 nexus <- scan(file=nexus_file_name,what=character(),sep="\n");
 ml <- 0;
@@ -1357,7 +1359,7 @@ if (analysis_name=="")	{
 	}
 #initial_data <- accio_data_from_nexus_file(nexus_file_name=paste(read_data_directory,nexus_file_name,sep=""),polymorphs,UNKNOWN,INAP,character_partitions=rate_partition);
 #if (rate_partition!="")	{
-print("Choose a nexus file to convert to RevBayes preferred format:");
+print("Your Nexus file probably needs to be converted to RevBayes' preferred format:");
 flush.console();
 initial_data <- accio_data_from_chosen_nexus_file(polymorphs,UNKNOWN,INAP,rate_partition,trend_partition);
 
@@ -1594,7 +1596,7 @@ if (length(unique(character_trend_partitions))>1)	{
 	revbayes_source <- c(revbayes_source,paste("trend_partition_labels <- v(\"",paste(partition_labels, collapse = "\",\""),"\");\t# names of rate partitions",sep=""));
 	revbayes_source <- c(revbayes_source,paste("ttl_trend_partitions <- ",length(partition_labels),";\t\t\t\t\t\t# number of rate partitions among character types",sep=""));
 	}
-revbayes_source <- c(revbayes_source,paste("max_age <- ",max_age,";\t\t\t\t\t\t# used if big_bang==TRUE;",sep=""));
+revbayes_source <- c(revbayes_source,paste("max_age <- ",max_age,";\t\t\t\t\t\t# used if clock_model==\"big_bang\";",sep=""));
 revbayes_source <- c(revbayes_source,"");
 taxon_names <- initial_data$OTUs;
 notu <- length(initial_data$OTUs);
@@ -1616,16 +1618,19 @@ if(as.numeric(initial_data$Outgroup[1])!=-1)	{
 	hip_crowd <- gsub(" ","_",hip_crowd);
 	revbayes_source <- c(revbayes_source,paste("ingroup = clade(",hip_crowd,");",sep=""));
 	} else	{
-	outies <- "ENTER_AN_OUTGROUP_HERE!"
-	revbayes_source <- c(revbayes_source,paste("outgroup = clade(\"",outies,"\");",sep=""));
-	hipsters <- "ENTER_THE_INGROUP_HERE!"
-	revbayes_source <- c(revbayes_source,paste("ingroup = clade(\"",hipsters,"\");",sep=""));
+#	outies <- "ENTER_AN_OUTGROUP_HERE!"
+#	revbayes_source <- c(revbayes_source,paste("outgroup = clade(\"",outies,"\");",sep=""));
+	hip_crowd <- "\"";
+	hip_crowd <- paste(hip_crowd,paste(taxon_names,collapse="\",\""),sep="");
+	hip_crowd <- paste(hip_crowd,"\"",sep="");
+	hip_crowd <- gsub(" ","_",hip_crowd);
+	revbayes_source <- c(revbayes_source,paste("ingroup = clade(\"",hip_crowd,"\");",sep=""));
 	}
 if (length(initial_data$Unscored_Taxa)>0)
 	revbayes_source <- c(revbayes_source,paste("unscored_taxa <- v(",paste(initial_data$Unscored_Taxa,collapse=","),");",sep=""));
 
-revbayes_source <- c(revbayes_source,"among_char_var <- \"lognormal\"\t\t## ENTER_THE_AMONG-CHARACTER_RATE_DISTRIBUTION_YOU_WISH_TO_USE_HERE\";\t# enter \"gamma\" or \"lognormal\"");
-#revbayes_source <- c(revbayes_source,"clock_model <- \"ENTER_THE_CLOCK_MODEL_YOU_WISH_TO_USE_HERE\";\t# enter \"strict\" for strict clock, or \"lognormal\" for relaxed clock with lognormal variation; we'll add \"dirichlet\ eventually;");
+revbayes_source <- c(revbayes_source,"among_char_var <- \"lognormal\"\t\t# enter \"gamma\" or \"lognormal\"");
+revbayes_source <- c(revbayes_source,"clock_model <- \"strict\";\t\t\t\t# enter \"strict\" for strict clock; \"big_bang\" for relaxed clock with rates declining over time; \"uncorrelated\" for relaxed clock with rates drawn from lognormal; \"autocorrelated\" for autocorrelated with lognormal shifts");
 
 revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,"############################################################################");
@@ -1694,12 +1699,18 @@ revbayes_source <- c(revbayes_source,"##########################################
 revbayes_source <- c(revbayes_source,"mymodel = model(tau);\t\t# tau should have FBD & character evolution models attached to it");
 revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,"############################################################################");
-revbayes_source <- c(revbayes_source,"# Add monitors & commence MCMC'ing");
+revbayes_source <- c(revbayes_source,"# Add monitors & stone your data");
 revbayes_source <- c(revbayes_source,"#  (Again, make sure that the source directory is OK)");
 revbayes_source <- c(revbayes_source,"# NOTE: the program saves trees once every printgen generations; so, the");
 revbayes_source <- c(revbayes_source,"#   lower the number, the more trees you save.");
 revbayes_source <- c(revbayes_source,"############################################################################");
 revbayes_source <- c(revbayes_source,"monitors = VectorMonitors();");
+revbayes_source <- c(revbayes_source,"");
+revbayes_source <- c(revbayes_source,"cats=20;              # Number of stepping stones; each will reduce the \"weight\" of the likelihood by ~1/cats)");
+revbayes_source <- c(revbayes_source,"burnin_gens=10000;    # Number of generations for the burnin pre-analysis (to tune parameters).");
+revbayes_source <- c(revbayes_source,"tuning_int=200;       # Frequency at which burnin analysis will tune parameters (in generations).");
+revbayes_source <- c(revbayes_source,"running_gens=100000;	# Number of generations for the real analysis; the bigger the analysis, the more you usually need.");
+
 stone_output <- analysis_name;
 if (length(unique(character_rate_partitions))>1)
 	stone_output <- paste(stone_output,paste(partition_labels,collapse="_vs_"),sep="_");
@@ -1822,7 +1833,7 @@ if (length(unique(character_trend_partitions))>1)	{
 	revbayes_source <- c(revbayes_source,paste("trend_partition_labels <- v(\"",paste(partition_labels, collapse = "\",\""),"\");\t# names of rate partitions",sep=""));
 	revbayes_source <- c(revbayes_source,paste("ttl_trend_partitions <- ",length(partition_labels),";\t\t\t\t\t\t# number of rate partitions among character types",sep=""));
 	}
-revbayes_source <- c(revbayes_source,paste("max_age <- ",max_age,";\t\t\t\t\t\t# used if big_bang==TRUE;",sep=""));
+revbayes_source <- c(revbayes_source,paste("max_age <- ",max_age,";\t\t\t\t\t\t# used if clock_model==\"big_bang\";",sep=""));
 revbayes_source <- c(revbayes_source,"");
 taxon_names <- initial_data$OTUs;
 notu <- length(initial_data$OTUs);
@@ -1844,17 +1855,19 @@ if(as.numeric(initial_data$Outgroup[1])!=-1)	{
 	hip_crowd <- gsub(" ","_",hip_crowd);
 	revbayes_source <- c(revbayes_source,paste("ingroup = clade(",hip_crowd,");",sep=""));
 	} else	{
-	outies <- "ENTER_AN_OUTGROUP_HERE!"
-	revbayes_source <- c(revbayes_source,paste("outgroup = clade(\"",outies,"\");",sep=""));
-	hipsters <- "ENTER_THE_INGROUP_HERE!"
-	revbayes_source <- c(revbayes_source,paste("ingroup = clade(\"",hipsters,"\");",sep=""));
+#	outies <- "ENTER_AN_OUTGROUP_HERE!"
+#	revbayes_source <- c(revbayes_source,paste("outgroup = clade(\"",outies,"\");",sep=""));
+	hip_crowd <- "\"";
+	hip_crowd <- paste(hip_crowd,paste(taxon_names,collapse="\",\""),sep="");
+	hip_crowd <- paste(hip_crowd,"\"",sep="");
+	hip_crowd <- gsub(" ","_",hip_crowd);
+	revbayes_source <- c(revbayes_source,paste("ingroup = clade(\"",hip_crowd,"\");",sep=""));
 	}
 if (length(initial_data$Unscored_Taxa)>0)
 	revbayes_source <- c(revbayes_source,paste("unscored_taxa <- v(",paste(initial_data$Unscored_Taxa,collapse=","),");",sep=""));
 
-revbayes_source <- c(revbayes_source,"among_char_var <- \"lognormal\"\t\t## ENTER_THE_AMONG-CHARACTER_RATE_DISTRIBUTION_YOU_WISH_TO_USE_HERE\";\t# enter \"gamma\" or \"lognormal\"");
-#revbayes_source <- c(revbayes_source,"clock_model <- \"ENTER_THE_CLOCK_MODEL_YOU_WISH_TO_USE_HERE\";\t# enter \"strict\" for strict clock, or \"lognormal\" for relaxed clock with lognormal variation; we'll add \"dirichlet\ eventually;");
-
+revbayes_source <- c(revbayes_source,"among_char_var <- \"lognormal\"\t\t# enter \"gamma\" or \"lognormal\"");
+revbayes_source <- c(revbayes_source,"clock_model <- \"strict\";\t\t\t\t# enter \"strict\" for strict clock; \"big_bang\" for relaxed clock with rates declining over time; \"uncorrelated\" for relaxed clock with rates drawn from lognormal; \"autocorrelated\" for autocorrelated with lognormal shifts");
 revbayes_source <- c(revbayes_source,"");
 revbayes_source <- c(revbayes_source,"############################################################################");
 revbayes_source <- c(revbayes_source,"#                  Get basic information about the clade                   #");
@@ -2080,7 +2093,7 @@ fbd_script <- c(fbd_script,"moves.append(mvFNPR(tau, weight=n_branches/2));     
 fbd_script <- c(fbd_script,"moves.append(mvNNI(tau, weight=n_branches/2));                               # nearest-neighbor interchanges");
 fbd_script <- c(fbd_script,"moves.append(mvCollapseExpandFossilBranch(tau,origin_time,weight=n_taxa/4)); # consider ancestor-descendant rather than sister species");
 fbd_script <- c(fbd_script,"moves.append(mvNodeTimeSlideUniform(tau, weight=n_branches/2));              # adjust divergence times");
-fbd_script <- c(fbd_script,"moves.append(mvRootTimeSlideUniform(tau, origin_time, weight=5));            # adjust basaldivergence time.");
+fbd_script <- c(fbd_script,"moves.append(mvRootTimeSlideUniform(tau, origin_time, weight=5));            # adjust basal divergence time.");
 fbd_script <- c(fbd_script,"");
 fbd_script <- c(fbd_script,"num_samp_anc := tau.numSampledAncestors();");
 fbd_script <- c(fbd_script,"for (bn in 1:n_branches)\t{");
@@ -2152,13 +2165,13 @@ return(gsub(" ","_",as.character(fossil_intervals$taxon[fossil_intervals$min==mi
 scribio_RevBayes_scripts_from_nexus_file_and_PaleoDB_download <- function(analysis_name,taxon_subset_file=F,rate_partition="",trend_partition="",taxon_level="species",lump_subgenera=F,species_only=T,bogarted="",rock_unit_databases="",chronostratigraphic_databases="",paleodb_fixes="",control_taxon="",zone_taxa="",onset="Cambrian",end="Holocene",end_FBD="",exclude_uncertain_taxa=T,basic_environments=c("terr","marine","unknown"),sampling_unit="collections",time_scale_stratigraphic_scale="International",temporal_precision=0.1,write_data_directory="",write_scripts_directory="",local_directory="",set_wdir="",UNKNOWN=-11,INAP=-22)	{
 #### PART 0: Commence ####
 print("This program will read a Nexus file and then create scripts that RevBayes can use to conduct phylogenetic analyses,");
-print("   using data downloaded from the Paleobiology Database (https://www.paleobiodb.org/) for stratigraphic data and then");
-print("   refining/cleaning/updating those data with updated time scales and biozonation information.");
+print("    using data downloaded from the Paleobiology Database (https://www.paleobiodb.org/) for stratigraphic data and then");
+print("    for refining/cleaning/updating those data with updated time scales and biozonation information.");
 print("");
 print("NOTE: The Paleobiology Database should always be considered a STARTING point for these data. This program will also");
-print("   output summaries of the data that you should check. We encourage you to contribute improvements to these data");
-print("   (including collections, occurrences and taxonomy) to the Paleobiology Database.  Improvements to the stratigraphic");
-print("   database used to refine PaleoDB data should be sent to pjwagner@gmail.com");
+print("\toutput summaries of the data that you should check. We encourage you to contribute improvements to these data");
+print("\t(to collections, occurrences and/or taxonomy) to the Paleobiology Database.  Improvements to the stratigraphic");
+print("\tdatabase used to refine PaleoDB data should be sent to pjwagner@gmail.com");
 print("");
 print("The program will partition the matrix based on numbers of states and whether states are ordered or unordered. The output");
 print("   RevBayes scripts create appropriate Q-matrices for each partition. The program also outputs stratigraphic information");
@@ -2426,7 +2439,7 @@ if (!is.null(zone_occurrences))	{
 	}
 if (is.list(rock_unit_databases))	{
 	print("Refining PaleoDB data with rock-unit and biozonation databases...");
-	paleodb_data_refined <- refine_collection_dates_with_external_database(study=analysis_name,collections=downloaded_collections,rock_database,zone_database,rock_to_zone_database,time_scale,directory=local_directory);
+	paleodb_data_refined <- refine_collection_dates_with_external_database(study=analysis_name,collections=downloaded_collections,rock_database,zone_database,rock_to_zone_database,time_scale,directory=local_directory,save_files=save_files);
 	refined_collections <- paleodb_data_refined$Recalibrated_Collections;
 	chronostrat_units <- unique(c(hierarchical_chronostrat$interval,refined_collections$interval_lb,refined_collections$interval_ub));
 	hierarchical_chronostrat <- accio_hierarchical_timescale(chronostrat_units,time_scale,regional_scale=time_scale_stratigraphic_scale);
@@ -2699,17 +2712,19 @@ if (ncol(fa_info)>2)	{
 	colnames(fa_info) <- c("taxon","fa");
 	}
 print("This program will read a Nexus file and then create scripts that RevBayes can use to conduct phylogenetic analyses.");
-print("\tThe program will prompt you for:");
-print("\t\t1. The original nexus file;");
-print("\t\t2. A .tsv file giving first and last appearance dates of each taxon (in Ma before the youngest taxa);");
-print("\t\t3. A RevBayes script setting up the parameters for diversification & sampling;");
+print("   The program will prompt you for (in order!):");
+print("      1. The original nexus file;");
+print("      2. A .tsv file giving first and last appearance dates of each taxon (in Ma before the youngest taxa);");
+print("      3. A RevBayes script setting up the parameters for diversification & sampling;");
 print("");
 flush.console();
+Sys.sleep(zzzz);
 #if (taxon_subset_file && tolower(taxon_subset_file)!="n")	{
 if (taxon_subset_file)	{
 	print("Choose file giving subset of taxa that you wish to be analyzed");
 	flush.console();
-	for (i in 1:100)	j <- 1;
+	Sys.sleep(zzzz);
+#	for (i in 1:100)	j <- 1;
 	} else	{   
 	taxa_subset <- "";
 	}
@@ -2746,23 +2761,22 @@ if (taxa_subset[1]=="")	{
 # However, let's see if there are any taxa that belong to the ingroup-clade that are excluded!
 print("Select .tsv file with first and last appearance dates for the FBD analysis:");
 flush.console();
-flush.console();
+Sys.sleep(zzzz);
 clade_members <- ingroup_taxa;
 
 fossil_interval_file <- file.choose();
 print(paste("Using '",fossil_interval_file,"'",sep=""));
-flush.console();
 flush.console();
 fossil_intervals <- read.table(fossil_interval_file,header=T);
 max_age <- max(fossil_intervals$max);
 
 print("Choose the FBD parameterization script: ");
 flush.console();
-flush.console();
+Sys.sleep(zzzz);
 fbd_parameterization_script <- file.choose();
 print(paste("Using '",fbd_parameterization_script,"'",sep=""));
 flush.console();
-flush.console();
+Sys.sleep(zzzz);
 break_it_down <- strsplit(fbd_parameterization_script,"")[[1]];
 if (sum(break_it_down=="/")>0)	{
 	script_file_lead <- "scripts/";
@@ -2814,7 +2828,7 @@ if (taxon_subset_file)	{
 	for (i in 1:100)	j <- 1;
 	} else	{   
 #	print("Choose the nexus file that you wish to analyze: ");
-	print("Choose a nexus file to convert to RevBayes preferred format:")
+#	print("Choose a nexus file to convert to RevBayes preferred format:")
 	taxa_subset <- "";
 	}
 #if (taxon_subset_file!="" && tolower(taxon_subset_file)!="n")	{
@@ -2823,7 +2837,7 @@ if (taxon_subset_file)	{
 	taxon_subset_file_name <- file.choose();
 	taxa_subset <- read.table(taxon_subset_file_name,header = T,stringsAsFactors=hell_no)[,1];
 #	print("Choose the nexus file that you wish to analyze: ");
-	print("Choose a nexus file to convert to RevBayes preferred format:")
+#	print("Choose a nexus file to convert to RevBayes preferred format:")
 	}
 
 #basic_data <- diffindo_character_matrix_by_state_numbers_and_other_partitions(analysis_name,write_data_directory,rate_partition,trend_partition,taxa_subset,data_file_lead="data/",polymorphs=T,UNKNOWN,INAP);
@@ -2880,7 +2894,7 @@ write(revbayes_babble,file=filename);
 }
 
 # taxon_name <- "'Gyrocystis' platessa";
-newickify_taxon_name <- function(taxon_name)	{
+nexusify_taxon_name <- function(taxon_name)	{
 molecularized_name <- strsplit(taxon_name,split="")[[1]];
 if (sum(molecularized_name %in% newick_verbotten)==0)	{
 	return(gsub(" ","_",taxon_name));
@@ -2901,8 +2915,8 @@ return(state_symbols);
 ##### ROUTINES TO DOWNLOAD, CLEAN & ORGANIZE PALEODB DATA #######
 
 # get basic stratigraphic information that RevBayes demands
-# updated 2020-05-02
-accio_paleodb_data_for_Rev_Bayes <- function(otu_names,analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa=T,taxon_level,onset,end,basic_environments=c("marine","unknown","terrestrial"),paleogeography="scotese",time_scale,zone_database,fossilworks_collections="",paleodb_rock_reidentifications="",paleodb_collection_edits="",lump_subgenera=F,species_only=T)	{
+# updated 2020-05-07
+accio_paleodb_data_for_Rev_Bayes <- function(otu_names,analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa=T,taxon_level,onset,end,basic_environments=c("marine","unknown","terrestrial"),paleogeography="scotese",time_scale,zone_database,fossilworks_collections="",paleodb_rock_reidentifications="",paleodb_collection_edits="",lump_subgenera=F,species_only=T,save_files=F)	{
 # otu_names: vector giving taxon names (matching those of the original nexus file)	
 # study: name of the study (e.g., "Phacophida" or "Ordovician_Bucanids")	
 # control_taxon: name of a taxonomic group that can be used as a control for sampling and diversification estimates
@@ -2965,10 +2979,12 @@ ingroup_collections$early_interval[ingroup_collections$max_ma>time_scale$ma_lb[m
 ingroup_collections$max_ma[ingroup_collections$min_ma<time_scale$ma_lb[match(onset,time_scale$interval)]] <- time_scale$ma_lb[match(onset,time_scale$interval)];
 
 #write.csv(data_compendium$collection_compendium[order(data_compendium$collection_compendium$collection_no),],
-write.csv(ingroup_collections[order(ingroup_collections$collection_no),],file=paste(local_directory,analysis_name,"_Collections.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
-#write.csv(data_compendium$collection_compendium[order(data_compendium$collection_compendium$collection_no),],
-#write.csv(ingroup_finds,file="Fred_Finds.csv");
-write.csv(ingroup_finds,file=paste(local_directory,analysis_name,"_Finds.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
+if (save_files)	{
+	write.csv(ingroup_collections[order(ingroup_collections$collection_no),],file=paste(local_directory,analysis_name,"_Collections.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
+	#write.csv(data_compendium$collection_compendium[order(data_compendium$collection_compendium$collection_no),],
+	#write.csv(ingroup_finds,file="Fred_Finds.csv");
+	write.csv(ingroup_finds,file=paste(local_directory,analysis_name,"_Finds.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
+	}
 
 if (control_taxon[1]!="")	{
 	print("Getting occurrence & collection data for control taxa....");
@@ -3009,8 +3025,10 @@ if (control_taxon[1]!="")	{
 		} else	{
 		control_file_name <- control_taxon;
 		}
-	write.csv(evanesco_na_from_matrix(control_data$control_collections,""),file=paste(local_directory,control_file_name,"_Collections.csv",sep=""),row.names = F);
-	write.csv(evanesco_na_from_matrix(control_data$control_occurrences,""),file=paste(local_directory,control_file_name,"_Finds.csv",sep=""),row.names = F);
+	if (save_files)	{
+		write.csv(evanesco_na_from_matrix(control_data$control_collections,""),file=paste(local_directory,control_file_name,"_Collections.csv",sep=""),row.names = F);
+		write.csv(evanesco_na_from_matrix(control_data$control_occurrences,""),file=paste(local_directory,control_file_name,"_Finds.csv",sep=""),row.names = F);
+		}
 	} else	{
 	control_collections <- ingroup_collections;
 	control_occurrences <- ingroup_finds;
@@ -3022,16 +3040,16 @@ if (zone_taxa[1]!="")	{
 	zone_taxa_data <- accio_data_for_control_groups_to_seed_FBD_analyses(control_taxon=zone_taxa,onset,end,basic_environments,species_only=T,paleogeography=paleogeography)
 	#zone_collections <- zone_taxa_data$control_collections[zone_taxa_data$control_collections$collection_no %in% control_collections$collection_no];
 	zone_occurrences <- zone_taxa_data$control_occurrences[zone_taxa_data$control_occurrences$collection_no %in% control_collections$collection_no,];
-	write.csv(zone_taxa_data$control_occurrences[zone_taxa_data$control_occurrences$collection_no %in% control_collections$collection_no,],
-			  file=paste(local_directory,analysis_name,"_Zone_Taxa_Finds.csv",sep=""),
-			  row.names = F);
+	if (save_files)
+		write.csv(zone_taxa_data$control_occurrences[zone_taxa_data$control_occurrences$collection_no %in% control_collections$collection_no,],
+				  file=paste(local_directory,analysis_name,"_Zone_Taxa_Finds.csv",sep=""),row.names = F);
 	}
 
 # this provides edits to biogeography due to old glitches.
 print("Now some basic cleaning of the collections data....")
 #if (!is.null(fossilworks_collections))	{
 if (is.data.frame(fossilworks_collections))	{
-	control_collections <- reparo_paleodb_paleogeography_with_fossilworks_data(paleodb_collections=control_collections,fossil_works_geography=fossilworks_collections);
+#	control_collections <- reparo_paleodb_paleogeography_with_fossilworks_data(paleodb_collections=control_collections,fossil_works_geography=fossilworks_collections);
 	direct_dates <- data.frame(direct_ma=as.numeric(fossilworks_collections$direct_ma[match(control_collections$collection_no,fossilworks_collections$collection_no)]),
 							   direct_ma_error=as.numeric(fossilworks_collections$direct_ma_error[match(control_collections$collection_no,fossilworks_collections$collection_no)]),
 							   direct_ma_method=as.character(fossilworks_collections$direct_ma_method[match(control_collections$collection_no,fossilworks_collections$collection_no)]),
@@ -3064,6 +3082,7 @@ return(output);
 
 # get occurrences for a taxon from some span of time & environment
 # modified 2020-03-02
+# modified 2020-05-05
 accio_occurrence_data <- function(taxa,onset="Proterozoic",end="Holocene",basic_environments="terr,marine,unknown",species_only=TRUE,clean_entered_taxa=TRUE,directory="",save_files=TRUE,output_type=".csv") {
 # Arguments:
 # 	taxa: proper taxonomic name
@@ -3089,12 +3108,21 @@ if (!is.na(match("THIS REQUEST RETURNED NO RECORDS",fetched)))	{
 	all_finds <- utils::read.csv(text = fetch, header = FALSE, stringsAsFactors=hell_no);
 	if (all_finds[1,1]=="Warning:")	{
 		# this will happen only if something goes badly wrong.
+#		if (sum(strsplit(all_finds[1,2]," ")[[1]] %in% c("did","not","match","any","name","in","the","taxonomy","table"))>=length(c("did","not","match","any","name","in","the","taxonomy","table")))	{
+#			unentered <- T;
+#			} else	{
+#			entered <- F;
+#			}
 		cc <- match("occurrence_no",all_finds[,1])
 		kluge_mc_kluge_face <- character();
 		for (mm in 1:ncol(all_finds))
 			kluge_mc_kluge_face <- c(kluge_mc_kluge_face,as.character(all_finds[cc,mm]));
 		colnames(all_finds) <- kluge_mc_kluge_face;
 		all_finds <- all_finds[(cc+1):nrow(all_finds),];
+		all_finds$accepted_name[all_finds$accepted_name==""] <- all_finds$identified_name[all_finds$accepted_name==""];
+		all_finds$accepted_rank[all_finds$accepted_rank==""] <- all_finds$identified_rank[all_finds$accepted_rank==""];
+		taxon_name=all_finds$accepted_name[all_finds$genus==""];
+		all_finds$genus[all_finds$genus==""] <- sapply(taxon_name,diffindo_genus_names_from_species_names)
 		} else	{
 		all_finds <- utils::read.csv(text = fetch, header = TRUE, stringsAsFactors=hell_no);
 		}
@@ -3150,6 +3178,9 @@ if (!is.na(match("THIS REQUEST RETURNED NO RECORDS",fetched)))	{
 		cleaned_names <- sapply(as.character(desired_finds$accepted_name),scourgify_taxon_names);
 		desired_finds$accepted_name <- cleaned_names;
 	
+#		desired_finds$genus==""
+#		taxon_names <- desired_finds$accepted_name;
+#		sapply(taxon_names,diffindo_genus_names_from_species_names)
 		# make sure that type subgenera are consistently Lophospira (Lophospira)
 		genus_name <- sort(unique(desired_finds$genus[desired_finds$genus!=""]));
 		ngen <- length(genus_name);
@@ -3387,24 +3418,24 @@ return(output);
 # updated 2020-03-05
 # updated 2020-04-12
 # updated 2020-04-30
-# updated 2020-05-02
-accio_PaleoDB_data_from_chosen_nexus_file <- function(onset,end,rock_unit_databases,chronostratigraphic_databases,paleodb_fixes,control_taxon="",zone_taxa="",taxon_level="species",basic_environments=c("marine","unknown","terrestrial"),paleogeography="scotese",time_scale_stratigraphic_scale="International",temporal_precision=0.05,lump_subgenera=F,analysis_name="",local_directory="",exclude_uncertain_taxa=T,species_only=T,bogarted=F,taxon_subset_file=F)	{
+# updated 2020-05-04
+accio_PaleoDB_data_from_chosen_nexus_file <- function(onset,end,rock_unit_databases,chronostratigraphic_databases,paleodb_fixes,control_taxon="",zone_taxa="",taxon_level="species",basic_environments=c("marine","unknown","terrestrial"),paleogeography="scotese",time_scale_stratigraphic_scale="International",temporal_precision=0.05,lump_subgenera=F,analysis_name="",local_directory="",exclude_uncertain_taxa=T,species_only=T,bogarted=F,taxon_subset_file=F,save_files=T)	{
 #### PART 0: Commence ####
 if (time_scale_stratigraphic_scale=="Standard")
 	time_scale_stratigraphic_scale <- "International";
 print("This program will read a Nexus file and download collections and occurrences from the Paleobiology Database");
-print("	  (https://www.paleobiodb.org/) for stratigraphic data and then start refining/cleaning/updating those data");
-print("	  with updated time scales and biozonation information.");
+print("   (https://www.paleobiodb.org/) for stratigraphic data and then start refining/cleaning/updating those data");
+print("   with updated time scales and biozonation information.");
 print("");
 print("NOTE: The Paleobiology Database should always be considered a STARTING point for these data. Part of what I have");
 print("   designed the output to do is to let you vett occurrence and collection data for your study group.  We encourage");
-print("   you to contribute improvements to these data (including collections, occurrences and taxonomy) to the Paleobiology");
+print("   you to contribute updates to these data (to collections, occurrences and/or taxonomy) to the Paleobiology");
 print("   Database (see https://www.youtube.com/channel/UCHxfFXYjYFotJmo_fNTSKJg for tutorials.)  Improvements to the");
 print("   stratigraphic database used to refine PaleoDB data should be sent to pjwagner@gmail.com");
 print("");
 if (taxon_level=="genus" && !lump_subgenera)
 	taxon_level <- "subgenus";
-#### PART 1: GET CHARACTER DATA & BASIC TAXON INFORMATION ####
+#### PART 1: GET TAXON INFORMATION FROM NEXUS FILE ####
 #if (taxon_subset_file && tolower(taxon_subset_file)!="n")	{
 if (taxon_subset_file)	{
 	print("Choose file giving subset of taxa that you wish to be analyzed");
@@ -3468,9 +3499,11 @@ compendium <- accio_updated_taxonomy_for_analyzed_taxa(otu_names=otu_names,local
 if (bogarted)	{
 	print("Choose the file with your private stash information: ");
 	flush.console();
+	Sys.sleep(zzzz);
 	bogarted_info <- file.choose();
 	print("Reading your private stash now....");
 	flush.console();
+	Sys.sleep(zzzz);
 #	bogarted_finds <- utils::read.csv(file = read.(bogarted_info), header = TRUE,stringsAsFactors=FALSE,encoding = "UTF-8");
 	bogarted_finds <- read.csv(file=bogarted_info,header = T,stringsAsFactors=hell_no,encoding = "UTF-8");
 	bogarted_finds <- evanesco_na_from_matrix(bogarted_finds,replacement="");
@@ -3597,7 +3630,7 @@ if (abs(time_scale$ma_ub[match(end,time_scale$interval)])>min(abs(compendium$fir
 	}
 
 ## get paleodb data!!!!
-paleodb_data <- accio_paleodb_data_for_Rev_Bayes(otu_names,analysis_name=analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa,taxon_level,onset,end,basic_environments,paleogeography,time_scale,zone_database,fossilworks_collections,paleodb_rock_reidentifications,paleodb_collection_edits,lump_subgenera,species_only);
+paleodb_data <- accio_paleodb_data_for_Rev_Bayes(otu_names,analysis_name=analysis_name,local_directory,control_taxon,zone_taxa,exclude_uncertain_taxa,taxon_level,onset,end,basic_environments,paleogeography,time_scale,zone_database,fossilworks_collections,paleodb_rock_reidentifications,paleodb_collection_edits,lump_subgenera,species_only,save_files=save_files);
 control_collections <- unique(paleodb_data$control_collections);
 control_occurrences <- unique(paleodb_data$control_occurrences);
 
@@ -3813,7 +3846,7 @@ if (is.list(rock_unit_databases))	{
 	relv_zone_database <- subset(zone_database,zone_database$ma_lb>=time_scale$ma_ub[match(end,time_scale$interval)]);
 	relv_zone_database <- subset(relv_zone_database,relv_zone_database$ma_ub<=time_scale$ma_lb[match(onset,time_scale$interval)]);
 	
-	paleodb_data_refined <- refine_collection_dates_with_external_database(study=analysis_name,collections=downloaded_collections,rock_database=relv_rock_database,zone_database=relv_zone_database,rock_to_zone_database=relv_rock_to_zone_database,time_scale,directory=local_directory);
+	paleodb_data_refined <- refine_collection_dates_with_external_database(study=analysis_name,collections=downloaded_collections,rock_database=relv_rock_database,zone_database=relv_zone_database,rock_to_zone_database=relv_rock_to_zone_database,time_scale,directory=local_directory,save_files=save_files);
 	refined_collections <- paleodb_data_refined$Recalibrated_Collections;
 	chronostrat_units <- unique(c(hierarchical_chronostrat$interval,refined_collections$interval_lb,refined_collections$interval_ub));
 	hierarchical_chronostrat <- accio_hierarchical_timescale(chronostrat_units,time_scale,regional_scale=time_scale_stratigraphic_scale);
@@ -3905,7 +3938,7 @@ problem_collections <- (1:ncolls)[optimized_collections$ma_lb<=optimized_collect
 pz <- 0;
 while (pz < length(problem_collections))	{
 	pz <- pz+1;
-	if (is.data.frame(rock_database))	{
+	if (is.list(rock_database))	{
 		prob_formation <- optimized_collections$formation[problem_collections[pz]];
 		prob_member <- optimized_collections$member[problem_collections[pz]];
 		} else	{
@@ -3994,9 +4027,11 @@ paleodb_finds <- control_occurrences;
 finest_chronostrat$ma_lb <- temporal_precision*round(finest_chronostrat$ma_lb/temporal_precision,0)
 finest_chronostrat$ma_ub <- temporal_precision*round(finest_chronostrat$ma_ub/temporal_precision,0)
 paleodb_collections <- completely_rebin_collections_with_uniform_time_scale(collections=optimized_collections,uniform_time_scale = finest_chronostrat);
-print(paste("Saving",paste(analysis_name,"_Refined_Collections.csv",sep=""),"..."));
 #print(taxon_level);
-write.csv(paleodb_collections,paste(local_directory,analysis_name,"_Refined_Collections.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
+if (save_files)	{
+	print(paste("Saving",paste(analysis_name,"_Refined_Collections.csv",sep=""),"..."));
+	write.csv(paleodb_collections,paste(local_directory,analysis_name,"_Refined_Collections.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
+	}
 #print(paste("Saving",paste(analysis_name,"_Plus_Control_Finds.csv",sep=""),"..."));
 #write.csv(paleodb_finds,paste(local_directory,analysis_name,"_Plus_Control_Finds.csv",sep=""),row.names=F,fileEncoding = "UTF-8");
 
@@ -4152,11 +4187,11 @@ finest_chronostrat$bin_last <-  1:nrow(finest_chronostrat);
 if (constrain)	{
 	early_interval <- as.character(taxon_collections$interval_lb);
 	late_interval <- as.character(taxon_collections$interval_ub);
-	fa_latest <- min(unique(hierarchical_chronostrat$bin_last[match(late_interval,hierarchical_chronostrat$interval)]));
-	la_earliest <- max(unique(hierarchical_chronostrat$bin_first[match(early_interval,hierarchical_chronostrat$interval)]));
+	fa_latest <- min(unique(finest_chronostrat$bin_last[match(late_interval,finest_chronostrat$interval)]));
+	la_earliest <- max(unique(finest_chronostrat$bin_first[match(early_interval,finest_chronostrat$interval)]));
 	} else	{
-	fa_latest <- min(hierarchical_chronostrat$bin_first);
-	la_earliest <- max(hierarchical_chronostrat$bin_last);
+	fa_latest <- min(finest_chronostrat$bin_first);
+	la_earliest <- max(finest_chronostrat$bin_last);
 	}
 collection_finds <- data.frame(array(0,dim=c(nrow(taxon_collections),1+(la_earliest-fa_latest))));
 colnames(collection_finds) <- finest_chronostrat$interval;
@@ -4445,7 +4480,7 @@ while (tx < notu)	{
 		if (sampling_unit=="collection")	{
 #			early_interval <- as.character(paleodb_collections$interval_lb[coll_no]);
 #			late_interval <- as.character(paleodb_collections$interval_ub[coll_no]);
-			f_p_b <- tally_collections_occupied_by_subinterval(taxon_collections,hierarchical_chronostrat,constrain=F,temporal_precision=temporal_precision);
+			f_p_b <- tally_collections_occupied_by_subinterval(taxon_collections,hierarchical_chronostrat,constrain=constrain,temporal_precision=temporal_precision);
 			} else	{
 #			taxon_collections <- name_unnamed_rock_units(paleodb_collections=taxon_collections,finest_chronostrat,constrain=constrain,temporal_precision=temporal_precision);
 			taxon_collections <- name_unnamed_rock_units(paleodb_collections=taxon_collections,finest_chronostrat);
@@ -7684,7 +7719,7 @@ return(stage);
 # edited 2020-03-05
 # edited 2020-04-09
 # edited 2020-04-12
-refine_collection_dates_with_external_database <- function(study="",collections,rock_database,zone_database,rock_to_zone_database,time_scale,directory="",save_files=TRUE,output_type=".csv")	{
+refine_collection_dates_with_external_database <- function(study="",collections,rock_database,zone_database,rock_to_zone_database,time_scale,directory="",save_files=F,output_type=".csv")	{
 n_rocks <- nrow(rock_database);
 
 redone_collections <- match_paleodb_collections_to_external_stratigraphic_database(collections,wagner_rocks=rock_database);
