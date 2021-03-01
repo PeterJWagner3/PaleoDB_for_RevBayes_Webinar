@@ -1,3 +1,4 @@
+library(gtools);
 MAXNO <- 1.797693e+308;
 # Routines to estimate different aspects of historical diversity patterns of the sort described
 #	in Paleobiology all of the time!
@@ -57,6 +58,7 @@ for (i in 1:bins)	dt[i] <- abs(timescale[i]-timescale[i+1])
 return(dt)
 }
 
+#### Foote Sampling Metrics ####
 freqrat <- function(taxon_ranges)	{
 if (!is.array(taxon_ranges))	{
 	counts <- hist(plot=FALSE,taxon_ranges,breaks=0:max(taxon_ranges))$counts
@@ -101,18 +103,18 @@ for (chrons in 1:rates)	{
 		exp_finds <- vector(length=bins)
 		for (a in 1:bins)	{
 			# multiply proportion of taxa living that long times proportion expected to be sampled for certain ranges
-			for (r in 1:a)	{
-				if (r==1)	{
+			for (R in 1:a)	{
+				if (R==1)	{
 					# probablity of living 1 stage & being found in it
 					if (a==1)	{
-						exp_finds[r] <- exp_ranges[a]*fr
+						exp_finds[R] <- exp_ranges[a]*fr
 						}	else {
 						# probablity of living 2+ stages & being found in only in the first
-						exp_finds[r] <- exp_finds[r]+exp_ranges[a]*fr*((1-fr)^(a-r))
+						exp_finds[R] <- exp_finds[R]+exp_ranges[a]*fr*((1-fr)^(a-R))
 						}
 					}	else {
 					# probablity of being found in this stage and one subsequent one & none afterwards
-					exp_finds[r] <- exp_finds[r]+exp_ranges[a]*(fr^2)*((1-fr)^(a-r))
+					exp_finds[R] <- exp_finds[R]+exp_ranges[a]*(fr^2)*((1-fr)^(a-R))
 					}
 				}	
 			}
@@ -123,9 +125,9 @@ for (chrons in 1:rates)	{
 freqratsson <- freqratsson-max(freqratsson)
 turn <- vector(length=rates)
 pres <- vector(length=rates)
-for (r in 1:rates)	{
-	turn[r] <- sum(exp(freqratsson[r,]))
-	pres[r] <- sum(exp(freqratsson[,r]))
+for (R in 1:rates)	{
+	turn[R] <- sum(exp(freqratsson[R,]))
+	pres[R] <- sum(exp(freqratsson[,R]))
 	}
 turn <- turn/sum(turn)
 pres <- pres/sum(pres)
@@ -139,16 +141,16 @@ colnames(output) <- c("ml","lb","ub")
 output[1,1] <- precision*match(0,turn)
 output[2,1] <- precision*match(0,pres)
 output[,3] <- 0.995
-for (r in 2:rates)	{
-	if (turn[r-1]>support_width && turn[r]<support_width)	{
-		output[1,2] <- precision*r
-		} else if (turn[r-1]<support_width && turn[r]>support_width)	{
-		output[1,3] <- precision*r
+for (R in 2:rates)	{
+	if (turn[R-1]>support_width && turn[R]<support_width)	{
+		output[1,2] <- precision*R
+		} else if (turn[R-1]<support_width && turn[R]>support_width)	{
+		output[1,3] <- precision*R
 		}
-	if (pres[r-1]>support_width && pres[r]<support_width)	{
-		output[2,2] <- precision*r
-		} else if (pres[r-1]<support_width && pres[r]>support_width)	{
-		output[2,3] <- precision*r
+	if (pres[R-1]>support_width && pres[R]<support_width)	{
+		output[2,2] <- precision*R
+		} else if (pres[R-1]<support_width && pres[R]>support_width)	{
+		output[2,3] <- precision*R
 		}
 	}
 return(output)
@@ -182,18 +184,18 @@ for (chrons in 1:99)	{
 		exp_finds <- vector(length=bins)
 		for (a in 1:bins)	{
 			# multiply proportion of taxa living that long times proportion expected to be sampled for certain ranges
-			for (r in 1:a)	{
-				if (r==1)	{
+			for (R in 1:a)	{
+				if (R==1)	{
 					# probablity of living 1 stage & being found in it
 					if (a==1)	{
-						exp_finds[r] <- exp_ranges[a]*fr
+						exp_finds[R] <- exp_ranges[a]*fr
 						}	else {
 						# probablity of living 2+ stages & being found in only in the first
-						exp_finds[r] <- exp_finds[r]+exp_ranges[a]*fr*((1-fr)^(a-r))
+						exp_finds[R] <- exp_finds[R]+exp_ranges[a]*fr*((1-fr)^(a-R))
 						}
 					}	else {
 					# probablity of being found in this stage and one subsequent one & none afterwards
-					exp_finds[r] <- exp_finds[r]+exp_ranges[a]*(fr^2)*((1-fr)^(a-r))
+					exp_finds[R] <- exp_finds[R]+exp_ranges[a]*(fr^2)*((1-fr)^(a-R))
 					}
 				}	
 			}
@@ -243,18 +245,18 @@ for (chrons in 1:99)	{
 		exp_finds <- vector(length=bins)
 		for (a in 1:bins)	{
 			# multiply proportion of taxa living that long times proportion expected to be sampled for certain ranges
-			for (r in 1:a)	{
-				if (r==1)	{
+			for (R in 1:a)	{
+				if (R==1)	{
 					# probablity of living 1 stage & being found in it
 					if (a==1)	{
-						exp_finds[r] <- exp_ranges[a]*fr
+						exp_finds[R] <- exp_ranges[a]*fr
 						}	else {
 						# probablity of living 2+ stages & being found in only in the first
-						exp_finds[r] <- exp_finds[r]+exp_ranges[a]*fr*((1-fr)^(a-r))
+						exp_finds[R] <- exp_finds[R]+exp_ranges[a]*fr*((1-fr)^(a-R))
 						}
 					}	else {
 					# probablity of being found in this stage and one subsequent one & none afterwards
-					exp_finds[r] <- exp_finds[r]+exp_ranges[a]*(fr^2)*((1-fr)^(a-r))
+					exp_finds[R] <- exp_finds[R]+exp_ranges[a]*(fr^2)*((1-fr)^(a-R))
 					}
 				}	
 			}
@@ -266,21 +268,65 @@ freqratsson <- freqratsson-max(freqratsson)
 return(freqratsson)
 }
 
+#### Birth Death Stuff ####
 expected_origination_given_logistic_constant_extinction <- function(mu,R,K,S=1)	{
 # mu: extinction
 # R: intrinsic rate of diversification (drops as S increases)
 # K: "carrying capacity" richness.
 # S: initial richness (1 unless otherwise specified)
-pp <- vector(length=1)
-dS <- R*S*(1-(S/K))
+pp <- vector(length=1);
+dS <- R*S*(1-(S/K));
 pp[1] <- mu+(log(S+dS)-log(S))
 while (min(pp)>mu)	{
 #	S <- S*exp((pp[chrons]-mu)*dt)
-	S <- min(K,(S+(R*S*(1-(S/K)))))
-	pp <- c(pp,mu+log(S+(R*S*(1-(S/K))))-log(S))
+	S <- min(K,(S+(R*S*(1-(S/K)))));
+	pp <- c(pp,mu+log(S+(R*S*(1-(S/K))))-log(S));
 #	print(c(length(pp),S,pp[length(pp)]))
 	}
 return(pp)
+}
+
+coupled_logistic_increase <- function(R, K, Si, Sj, a)	{
+#	R: intrinsic rate of increase
+#	K: peak richness
+#	Si: initial richness of this group
+#	Sj: initial richness of the other group
+#	a: effect of group i on group j: >1 means that group j is worth 1+ group i; <1 means that group j is worth less than 1 of group i.
+#			the group with the higher number is winning
+#			if a==1, then it's just the standard logistic unless K or r differ between the two groups.
+
+x <- a*Nj;
+y <- Ni + (a*Nj);
+y <- (Ni + (a*Nj))/K;
+u <- 1 - (Ni+(a*Nj))/K;
+v <- R*Ni;
+w <- v*u;	#
+
+dSdt <- R*Si*(1-((Si+(a*Sj))/K));
+
+return(dSdt);
+}
+
+coupled_logistic_origination <- function(R, K, S1, S2, a, mu, myr=1)	{
+#	R: intrinsic rate of increase
+#	K: peak richness
+#	S1: initial richness of this group
+#	S2: initial richness of the other group
+#	a: effect of group i on group j: >1 means that group j is worth 1+ group i; <1 means that group j is worth less than 1 of group i.
+#			the group with the higher number is winning
+#			if a==1, then it's just the standard logistic unless K or r differ between the two groups.
+
+x <- a*S2;
+y <- S1 + (a*S2);
+y <- (S1 + (a*S2))/K;
+u <- 1 - (S1+(a*S2))/K;
+v <- R*S1;
+w <- v*u;	#
+
+S1j <- S1+(R*S1*(1-((S1+(a*S2))/K)));
+#lamba <-  (ln((S1+(R*S1*(1-((S1+(a*S2))/K))))/S1)/myr)+mu;
+lamba <-  (ln(S1j/S1)/myr)+mu;
+return(lamba);
 }
 
 Per_Bin_Sampling_Given_Range_Throughs <- function(ranges, finds)	{
@@ -453,7 +499,7 @@ return(fine_rates)
 }
 
 # written 2017-01-01
-accio_prob_sampling_paraclade_of_unknown_size_from_interval <- function(p,q,r,chrons,continuous=TRUE)	{
+accersi_prob_sampling_paraclade_of_unknown_size_from_interval <- function(p,q,r,chrons,continuous=TRUE)	{
 # p: origination rate during interval
 # q: extinction rate during interval
 # r: sampling rate for interval
@@ -484,7 +530,7 @@ return(p_samp)
 }
 
 # routine written during strophomenoid project 2017-06-14 to figure out how the hell I found phi
-accio_paraclade_sampling_per_time_slice <- function(p,q,r,ts,prec) {
+accersi_paraclade_sampling_per_time_slice <- function(p,q,r,ts,prec) {
 # routine to get phis at different points in time
 # returns a vector of length = length of 10xtimescale duration
 # ts: time scale giving onset of each interval.  If there are 12 intervals, then there should
@@ -499,7 +545,7 @@ rr <- assign_interval_rates_to_finer_time_scale(bin_rates=r,bs,prec)
 dt <- rep(prec,slices)
 
 # phi for individual time slice
-phi1s <- accio_p_sample_lineage_present_over_interval_continuous(pp,qq,rr,dt)
+phi1s <- accersi_p_sample_lineage_present_over_interval_continuous(pp,qq,rr,dt)
 return(phi1s)
 }
 # pp: per-interval origination rates
@@ -541,7 +587,7 @@ dt <- rep(prec,length(pp))
 #length(qq)
 #length(rr)
 #length(dt)
-phi_sl <- accio_p_sample_lineage_present_over_interval_continuous(pp,qq,rr,dt)
+phi_sl <- accersi_p_sample_lineage_present_over_interval_continuous(pp,qq,rr,dt);
 #sum(abs(phi_sl-foote_99))
 #sum(abs(phi_sl_f-foote_99_ts))
 
@@ -630,8 +676,8 @@ for (i in 1:slices)	{
 	rrr[i] <- rr[b]
 	chrons <- chrons+prec
 	}
-phi1s <- accio_p_sample_lineage_present_over_interval_continuous(ppp,qqq,rrr,dtt)
-prob_fs <- accio_p_sample_lineage_present_over_interval_continuous(pp,qq,rr,dt)
+phi1s <- accersi_p_sample_lineage_present_over_interval_continuous(ppp,qqq,rrr,dtt)
+prob_fs <- accersi_p_sample_lineage_present_over_interval_continuous(pp,qq,rr,dt)
 b <- 1
 onset <- chrons <- ts[b]
 while (chrons<ts[bins+1])	{
@@ -1241,7 +1287,7 @@ return(pmiss_after)
 #qq <- c(0.8,0.8,1.2,0.7)
 #rr <- c(0.25,0.15,0.30,0.25)
 #dt <- c(1,1,1,1)
-accio_p_sample_lineage_present_over_interval_continuous <- function(pp,qq,rr,dt)	{
+accersi_p_sample_lineage_present_over_interval_continuous <- function(pp,qq,rr,dt)	{
 # function to get the probability that a lineage present at the outset of B bins is ever sampled
 # dt: length of bins, not absolute dates
 bins <- length(dt);
@@ -1260,11 +1306,11 @@ for (b in 1:bins)	{
 		}	else {
 		# if using distributed sampling rates, then get average pfind
 		pfind <- 0
-		for (rt in 1:rr_tiles)	{
+		for (rrt in 1:rr_tiles)	{
 			if (pp[b]<=0 && qq[b]<=0)	{
-				pfind <- pfind + 1-dpois(0,rr[b,rt]*dt[b])
+				pfind <- pfind + 1-dpois(0,rr[b,rrt]*dt[b])
 				} else	{
-				pfind <- pfind + prob_sampling_branching_integrate(pp[b],qq[b],rr[b,rt],dt[b])
+				pfind <- pfind + prob_sampling_branching_integrate(pp[b],qq[b],rr[b,rrt],dt[b])
 				}
 			}
 		pfind <- pfind/rr_tiles
@@ -1741,13 +1787,13 @@ while (ps>=(mxps/100000))	{
 		} else {
 		ev_time <- c(ev_time,chrons*n*mean(expected))
 		}
-	ps <- 1-exp(-r*ev_time[n])
+	ps <- 1-exp(-R*ev_time[n])
 	if (mxps<ps)	mxps <- ps
 	ps
 	n <- n+1
 	}
 t_time <- sum(ev_time)		# expected total time encompassed by lineage and possible descendants
-pn <- 1-exp(-r*t_time)		# 1 minus probabiity of zero finds
+pn <- 1-exp(-R*t_time)		# 1 minus probabiity of zero finds
 return(pn)
 }
 
@@ -2454,7 +2500,7 @@ count_gaps_per_taxon_in_ranges <- function(finds_per_bin,cutoff=1000)	{
 # cutoff is the maximum gap size before we assume polyphyly
 notu <- nrow(finds_per_bin)
 nbins <- ncol(finds_per_bin)
-first_last <- accio_classic_first_last_appearances(finds_per_bin)
+first_last <- accersi_classic_first_last_appearances(finds_per_bin)
 taxon_gaps_per_bin <- array(0,dim=c(notu,nbins))
 colnames(taxon_gaps_per_bin) <- colnames(finds_per_bin)
 gap_length <- array(0,notu)
@@ -2513,7 +2559,7 @@ for (n in 1:notu)	{
 return(taxon_gaps_per_bin)
 }
 
-accio_classic_first_last_appearances <- function(finds_per_bin)	{
+accersi_classic_first_last_appearances <- function(finds_per_bin)	{
 notu <- nrow(finds_per_bin)
 nbins <- ncol(finds_per_bin)
 first_last <- c()
@@ -2716,13 +2762,13 @@ names(gappers) <- colnames(finds_per_bin)[1:mx_bins]
 return(gappers)
 }
 
-accio_observed_richness <- function(finds_per_bin)	{
+accersi_observed_richness <- function(finds_per_bin)	{
 # finds_per_bin: taxon by bins matrix where finds_per_bin[n,b]≥1 means that the taxon n
 #	is present in bin b. Occurrence numberes are fine: there is no need to convert them to 1 
 return(colSums(finds_per_bin>0))
 }
 
-accio_synoptic_richness <- function(taxon_ranges,interval_names="")	{
+accersi_synoptic_richness <- function(taxon_ranges,interval_names="")	{
 # taxon_ranges: a taxon x 2 matrix where column 1 gives 1st appearance bin & column 2
 #	gives 2nd appearance bin. Bin 10 must precede Bin 11.
 #ntaxa <- nrow(taxon_ranges);
@@ -2736,9 +2782,11 @@ if (length(interval_names)>0)	names(jacks) <- interval_names[mnbin:bins];
 return(jacks)
 }
 
+#match(unique(which(finds==rownames(finds_per_bin)[tx],arr.ind = T)[,1]),sites$collection_no)
+#collections[1,]
 # written 2019-08-15 to simplify life
 # modified 2019-08-31 to simplify life
-accio_stratigraphic_ranges_from_sampled_in_bin <- function(finds_per_bin)	{
+accersi_stratigraphic_ranges_from_sampled_in_bin <- function(finds_per_bin)	{
 #present_in_bin <- 1*(finds_per_bin>=0.5);
 ttl_bins <- 1:ncol(finds_per_bin);
 ttl_taxa <- nrow(finds_per_bin);
@@ -2756,8 +2804,8 @@ return(taxon_ranges);
 }
 
 # written 2019-08-15 to simplify life
-accio_synoptic_richness_from_sampled_in_bin <- function(finds_per_bin)	{
-taxon_ranges <- accio_stratigraphic_ranges_from_sampled_in_bin(finds_per_bin);
+accersi_synoptic_richness_from_sampled_in_bin <- function(finds_per_bin)	{
+taxon_ranges <- accersi_stratigraphic_ranges_from_sampled_in_bin(finds_per_bin);
 synoptic_richness <- vector(length=max(max(taxon_ranges),ncol(finds_per_bin)));
 names(synoptic_richness) <- colnames(finds_per_bin);
 for (tx in 1:nrow(taxon_ranges))	{
@@ -2797,7 +2845,7 @@ return(foote_bt)
 }
 
 # taxa that cross lower boundary and upper boundary
-accio_foote_bt <- function(taxon_ranges,interval_names="",TRUNC=FALSE)	{
+accersi_foote_bt <- function(taxon_ranges,interval_names="",TRUNC=FALSE)	{
 if (!is.data.frame(taxon_ranges))
 	taxon_ranges <- data.frame(taxon_ranges);
 colnames(taxon_ranges) <- c("fa","la");
@@ -2821,7 +2869,7 @@ return(foote_bt)
 }
 
 # taxa that cross lower boundary but not upper boundary
-accio_foote_bL <- function(taxon_ranges,interval_names="")	{
+accersi_foote_bL <- function(taxon_ranges,interval_names="")	{
 taxon_ranges <- data.frame(taxon_ranges);
 colnames(taxon_ranges) <- c("FA","LA")
 bins <- max(taxon_ranges[,2]);
@@ -2838,7 +2886,7 @@ return(foote_bL);
 }
 
 # taxa that cross upper boundary but not lower boundary
-accio_foote_Ft <- function(taxon_ranges,interval_names="")	{
+accersi_foote_Ft <- function(taxon_ranges,interval_names="")	{
 taxon_ranges <- data.frame(taxon_ranges);
 colnames(taxon_ranges) <- c("FA","LA")
 bins <- max(taxon_ranges[,2]);
@@ -2888,7 +2936,7 @@ pt <- prob_observing_n_shared_given_turnover_sampling_and_hypothesized_shared(n=
 return(max(10^-320,sum(pt)))
 }
 
-accio_best_turnover_given_sampling <- function(pmiss,S1,two_timer,gap_filler,continuous)	{
+accersi_best_turnover_given_sampling <- function(pmiss,S1,two_timer,gap_filler,continuous)	{
 # rate gives the proportion NOT shared between bins
 #		originations or extinctions for historical data
 # pmiss: typical probability of failing to sample a taxon;
@@ -2925,7 +2973,7 @@ return(output)
 }
 
 # added 2019-08-15
-accio_diversification_likelihoods <- function(occr_per_bin,prob_miss_interval,first_bin=1)	{
+accersi_diversification_likelihoods <- function(occr_per_bin,prob_miss_interval,first_bin=1)	{
 # added 2019-08-15
 # occr_per_bin: finds per bin.  Numbers can be fractions reflecting uncertaing
 # prob_miss_interval: probability of failing to find a taxon in an interval;
@@ -2971,10 +3019,10 @@ for (b in first_bin:length(interval_names))	{
 		pmiss <- prob_miss_interval[a]
 		two_timer <- two_timer_pre[b]
 		gap_filler <- sum(taxon_gaps_per_slice[observed,b-1])
-		dynamic <- accio_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
+		dynamic <- accersi_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
 		diversification_rates$ML_Orig[b]=dynamic$ML_Rate;
 		diversification_rates$lnL_ML_Orig[b]=dynamic$MlnL_Rate;
-		diversification_rates[b,1:2] <- accio_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE)
+		diversification_rates[b,1:2] <- accersi_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE)
 		if (diversification_rates$ML_Orig[b]>0)	{
 			poss_rates <- seq(diversification_rates[b,1]/10,10*diversification_rates[b,1],by=diversification_rates[b,1]/100);
 			} else	{
@@ -2988,7 +3036,7 @@ for (b in first_bin:length(interval_names))	{
 		pmiss <- prob_miss_interval[c];
 		two_timer <- two_timer_after[b];
 		gap_filler <- sum(taxon_gaps_per_slice[observed,b+1]);
-		dynamic <- accio_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
+		dynamic <- accersi_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
 		diversification_rates$ML_Extn[b]=dynamic$ML_Rate;
 		diversification_rates$lnL_ML_Extn[b]=dynamic$MlnL_Rate;
 		if (diversification_rates$ML_Extn[b]>0)	{
@@ -3006,7 +3054,7 @@ return(diversification_rates);
 
 # added 2019-08-15
 # modified 2019-08-31
-accio_diversification_per_ma_likelihoods <- function(occr_per_bin,prob_miss_interval,time_scale,first_bin=1,last_bin=MAXNO)	{
+accersi_diversification_per_ma_likelihoods <- function(occr_per_bin,prob_miss_interval,time_scale,first_bin=1,last_bin=MAXNO)	{
 # added 2019-08-15
 # occr_per_bin: finds per bin.  Numbers can be fractions reflecting uncertaing
 # prob_miss_interval: probability of failing to find a taxon in an interval;
@@ -3015,7 +3063,7 @@ accio_diversification_per_ma_likelihoods <- function(occr_per_bin,prob_miss_inte
 n_intervals <- ncol(occr_per_bin);
 interval_names <- colnames(occr_per_bin);
 
-#accio_synoptic_richness_from_sampled_in_bin(finds_per_bin = occr_per_bin);
+#accersi_synoptic_richness_from_sampled_in_bin(finds_per_bin = occr_per_bin);
 sampled_in_bin <- 1*(occr_per_bin>=0.5);
 tnotu <- nrow(occr_per_bin);
 missed_taxa <- (1:tnotu)[rowSums(sampled_in_bin)==0];
@@ -3059,7 +3107,7 @@ for (b in first_bin:last_bin)	{
 		pmiss <- prob_miss_interval[a];
 		two_timer <- two_timer_pre[b]
 		gap_filler <- sum(taxon_gaps_per_slice[observed,b-1]);
-		dynamic <- accio_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
+		dynamic <- accersi_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
 		diversification_rates$ML_Orig[b]=dynamic$ML_Rate/interval_duration;
 		diversification_rates$lnL_ML_Orig[b]=dynamic$MlnL_Rate;
 		if (diversification_rates$ML_Orig[b]>0)	{
@@ -3075,7 +3123,7 @@ for (b in first_bin:last_bin)	{
 		pmiss <- prob_miss_interval[c];
 		two_timer <- two_timer_after[b];
 		gap_filler <- sum(taxon_gaps_per_slice[observed,b+1]);
-		dynamic <- accio_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
+		dynamic <- accersi_best_turnover_given_sampling(pmiss,S1,two_timer,gap_filler,continuous=TRUE);
 		diversification_rates$ML_Extn[b]=dynamic$ML_Rate/interval_duration;
 		diversification_rates$lnL_ML_Extn[b]=dynamic$MlnL_Rate;
 		if (diversification_rates$ML_Extn[b]>0)	{
@@ -3117,7 +3165,7 @@ if (prob>0)	{
 return(sum(pturn))
 }
 
-accio_best_turnover <- function(median_sampling,stdev_mag,S1,two_timer,gap_filler,ncoll,continuous)	{
+accersi_best_turnover <- function(median_sampling,stdev_mag,S1,two_timer,gap_filler,ncoll,continuous)	{
 mxx <- 0.99*pnorm(-log(median_sampling)/log(stdev_mag))
 pfind <- 1-integrate(prob_missing_given_lognormal,lower=0,upper=mxx,median_sampling=median_sampling,stdev_mag=stdev_mag,ncoll=ncoll)$value
 # rate gives the proportion NOT shared between bins
@@ -3165,7 +3213,7 @@ for (i in 1:slices)	{
 return(fine_rates)
 }
 
-accio_first_differences <- function(time_series)	{
+accersi_first_differences <- function(time_series)	{
 tt <- length(time_series)-1
 first_diffs <- vector(length = tt)
 for (i in 1:tt)
@@ -3173,7 +3221,7 @@ for (i in 1:tt)
 return(first_diffs)
 }
 
-### richness estimators
+#### Richness Estimators ####
 chao2 <- function(abundance)	{
 ntaxa <- sum(abundance>0)
 q1 <- sum(abundance==1);
@@ -3203,12 +3251,21 @@ fr <- ntaxa/(ntaxa + (observed[1]*(((5*ss)-15)/ss)) - observed[2]*((10*(ss*ss)-(
 return(fr);
 }
 
+#### Coverage Statistics ####
 coverage_good_1965 <- function(Xi)	{
 # Good's U
 # Xi: number of specimens/occurrences for each taxon i
 O <- sum(Xi);		# ∑ occurrences
 s1 <- sum(Xi==1);	# No. of singletons
 return(1-(s1/O));
+}
+
+coverage_good_1965_mod<-function(Xi)	{
+# Xi: number of specimens/occurrences for each taxon i
+singletons <- length(subset(Xi,Xi==1));
+records <- sum(Xi);
+maxf <- max(Xi);
+return(1-(singletons+maxf)/(records-maxf))
 }
 
 coverage_alroy_2010 <- function(Xi,single_pub_occ)	{
@@ -3221,19 +3278,14 @@ return(1-((sum(Xi) - (single_pub_occ + Xi[1]))/sum(Xi)));
 
 coverage_chao_jost_2012 <- function(Xi,m)	{
 # Chao & Jost 2012 eq. 4b
-# m: smallest sample size
+# m: smallest sample size of the sampled "bins" (whatever they are; e.g., stage with fewest occurrences);
 # Xi: number of specimens/occurrences for each taxon i
-n <- sum(Xi)
-S <- length(Xi)
-summation <- 0
-for (i in 1:S)	summation <- summation+((Xi[i]/n)*(choose(n-Xi[i],m)/choose(n,m)))
-return(1-summation)
+n <- sum(Xi);
+S <- length(Xi);
+summation <- 0;
+for (i in 1:S)	summation <- summation+((Xi[i]/n)*(choose(n-Xi[i],m)/choose(n,m)));
+return(1-summation);
 }
-
-estimated_species_richness_at_sample_size_m <- function(So,m,n)	{
-
-}
-
 
 #find_data_set <- subset(find_data,find_data$fuzz==0);
 #find_data_set_20 <- subset(find_data_set,find_data_set$bin_lb==20);
@@ -3267,6 +3319,7 @@ m <- So-s1
 return((N/(s1+1))*(m/So))
 }
 
+#### Diversity Estimators ####
 capture_mark_recapture_with_distributed_sampling <- function(presences,sampling,sampling_dist="LogNormal",timers=3,metric)	{
 # presences: matrix giving number of presences in each bin
 #	will be converted to presence/absence
@@ -3324,7 +3377,7 @@ prob_range_extension_given_varying_diversification <- function(p,q,r,bs,prec=0.1
 #qq <- assign_interval_rates_to_finer_time_scale(bin_rates = q,bin_spans = bs,prec)
 tt <- rep(prec,bins)
 
-prob_branch_surviving <- accio_prob_paraclade_survivorship_in_time_slices_given_shifting_rates(p,q,bs,prec=0.1,max_S=15)
+prob_branch_surviving <- accersi_prob_paraclade_survivorship_in_time_slices_given_shifting_rates(p,q,bs,prec=0.1,max_S=15)
 rr <- assign_interval_rates_to_finer_time_scale(bin_rates = r,bin_spans = bs,prec)
 bins <- length(rr)
 p_ghost <- array(0,dim=c(bins,bins))
@@ -3346,14 +3399,14 @@ pp <- assign_interval_rates_to_finer_time_scale(bin_rates = p,bin_spans = bs,pre
 qq <- assign_interval_rates_to_finer_time_scale(bin_rates = q,bin_spans = bs,prec)
 tt <- rep(prec,bins)
 # get probablity of paraclade survival over time interval with rate shifts
-xxx <- accio_prob_richness_shifting_rates(pp,qq,tt,max_S)
+xxx <- accersi_prob_richness_shifting_rates(pp,qq,tt,max_S)
 pexx <- 1-xxx[1,length(xxx[1,])]	# prob. paraclade survival
 pex <- exp(sum(-1*prec*qq))			# prob. progenitor survival
 return(pex/pexx)
 }
 
 # get the probability of standing richness given shifts in diversification after clade onset
-accio_prob_richness_shifting_rates_by_bin_partial <- function(bb,pp,qq,tt,max_S=50)	{
+accersi_prob_richness_shifting_rates_by_bin_partial <- function(bb,pp,qq,tt,max_S=50)	{
 tb <- length(pp)
 dd <- cbind(pp[bb:tb],qq[bb:tb])
 dvrs <- c(pp[bb],qq[bb])
@@ -3373,12 +3426,12 @@ n <- 0:max_S
 p_s_outset <- array(0,dim=1+max_S)
 p_s_outset[2] <- 1
 ts <- seq(prec,ttt[1],by=prec)
-p_rich_at_time_slice <- sapply(ts,accio_prob_richness_time_slices_within_interval,max_S,p=dvrs[1,1],q=dvrs[1,2],p_s_outset,prec=0.1)
+p_rich_at_time_slice <- sapply(ts,accersi_prob_richness_time_slices_within_interval,max_S,p=dvrs[1,1],q=dvrs[1,2],p_s_outset,prec=0.1)
 
 for (b in 2:nrow(dvrs))	{
 	p_s_outset <- p_rich_at_time_slice[,ncol(p_rich_at_time_slice)]
 	ts <- seq(prec,ttt[b],by=prec)
-	prats <- sapply(ts,accio_prob_richness_time_slices_within_interval,max_S,p=dvrs[b,1],q=dvrs[b,2],p_s_outset,prec=0.1)
+	prats <- sapply(ts,accersi_prob_richness_time_slices_within_interval,max_S,p=dvrs[b,1],q=dvrs[b,2],p_s_outset,prec=0.1)
 	p_rich_at_time_slice <- cbind(p_rich_at_time_slice,prats)
 	}
 return(p_rich_at_time_slice)
@@ -3386,10 +3439,10 @@ return(p_rich_at_time_slice)
 #sapply(n,prob_n_species_at_time_tm,a=1,p,q,chrons=32.5)
 }
 
-accio_prob_richness_time_slices_within_interval <- function(ts,max_S=50,p,q,p_s_outset,prec=0.1)	{
+accersi_prob_richness_time_slices_within_interval <- function(ts,max_S=50,p,q,p_s_outset,prec=0.1)	{
 a <- 1:max_S
 ns <- 0:max_S
-jjjj <- sapply(a,accio_paraclade_richness_probs,ns,p,q,chrons=ts)
+jjjj <- sapply(a,accersi_paraclade_richness_probs,ns,p,q,chrons=ts)
 hhhh <- rep(0,max_S+1)
 hhhh[1] <- 1		# if it starts at 0, then it is guaranteed to stay at 0
 jjjj <- cbind(hhhh,jjjj)
@@ -3399,14 +3452,14 @@ prob_rich <- rowSums(jjjj)
 return(prob_rich)
 }
 
-accio_paraclade_richness_probs <- function(a,ns,p,q,chrons)	{
+accersi_paraclade_richness_probs <- function(a,ns,p,q,chrons)	{
 n <- ns
 pr_s_n <- sapply(n,prob_n_species_at_time_tm,a,p,q,chrons)
 return(pr_s_n)
 }
 
 # get the probability of standing richness given shifts in diversification after clade onset
-accio_prob_richness_shifting_rates <- function(pp,qq,tt,max_S=50)	{
+accersi_prob_richness_shifting_rates <- function(pp,qq,tt,max_S=50)	{
 bins <- length(tt)
 n <- 0:max_S
 prob_S <- array(0,dim=c(max_S+1,bins))
@@ -3431,7 +3484,7 @@ return(prob_S)	# probability of 0…max_S species in each time slice given rates
 }
 
 # get the probability of a paraclade going extinct over intervals with different origination & sampling
-accio_prob_paraclade_extinction_in_time_slices_given_shifting_rates <- function(p,q,bs,prec=0.1)	{
+accersi_prob_paraclade_extinction_in_time_slices_given_shifting_rates <- function(p,q,bs,prec=0.1)	{
 pp <- assign_interval_rates_to_finer_time_scale(bin_rates = p,bin_spans = bs,prec)
 qq <- assign_interval_rates_to_finer_time_scale(bin_rates = q,bin_spans = bs,prec)
 bins <- length(pp)
@@ -3442,14 +3495,14 @@ for (b in 1:(bins-1))	{
 	ps <- pp[b:bins]
 	qs <- qq[b:bins]
 	tms <- tt[b:bins]
-	xxx <- accio_prob_richness_shifting_rates(ps,qs,tms,max_S=15)
+	xxx <- accersi_prob_richness_shifting_rates(ps,qs,tms,max_S=15)
 	prob_no_survivors[b:bins,b] <- xxx[1,]
 	}
 return(prob_no_survivors)
 }
 
 # get the probability of a paraclade surviving over intervals with different origination & sampling
-accio_prob_paraclade_survivorship_in_time_slices_given_shifting_rates <- function(p,q,bs,prec=0.1,max_S=15)	{
+accersi_prob_paraclade_survivorship_in_time_slices_given_shifting_rates <- function(p,q,bs,prec=0.1,max_S=15)	{
 pp <- assign_interval_rates_to_finer_time_scale(bin_rates = p,bin_spans = bs,prec)
 qq <- assign_interval_rates_to_finer_time_scale(bin_rates = q,bin_spans = bs,prec)
 bins <- length(pp)
@@ -3457,35 +3510,35 @@ tt <- rep(prec,bins)
 prob_survivors <- array(0,dim=c(bins,bins))
 
 b <- 1:(bins-1)
-#prob_extinct <- sapply(b,accio_prob_paraclade_extinct_shifting_rates_from_b_to_B,pp,qq,tt,max_S)
-prob_survivors <- sapply(b,accio_prob_paraclade_extant_shifting_rates_from_b_to_B,pp,qq,tt,max_S)
+#prob_extinct <- sapply(b,accersi_prob_paraclade_extinct_shifting_rates_from_b_to_B,pp,qq,tt,max_S)
+prob_survivors <- sapply(b,accersi_prob_paraclade_extant_shifting_rates_from_b_to_B,pp,qq,tt,max_S)
 for (b in 1:(bins-1))	{
 	if (b%%25==0)	print(b)
-	xxx <- accio_prob_paraclade_extinct_shifting_rates_from_b_to_B(b,pp,qq,tt,max_S)
+	xxx <- accersi_prob_paraclade_extinct_shifting_rates_from_b_to_B(b,pp,qq,tt,max_S)
 	1-xxx[1,]
 	ps <- pp[b:bins]
 	qs <- qq[b:bins]
 	tms <- tt[b:bins]
-	xxx <- accio_prob_richness_shifting_rates(ps,qs,tms,max_S)
+	xxx <- accersi_prob_richness_shifting_rates(ps,qs,tms,max_S)
 	prob_survivors[b:bins,b] <- 1-xxx[1,]
 	prob_survivors[b,b:bins] <- 1-xxx[1,]
 	}
 return(prob_survivors)
 }
 
-accio_prob_paraclade_extinct_shifting_rates_from_b_to_B <- function(b,pp,qq,tt,max_S=50)	{
+accersi_prob_paraclade_extinct_shifting_rates_from_b_to_B <- function(b,pp,qq,tt,max_S=50)	{
 if (b%%25==0)	print(b)
 bins <- length(pp)
-xxx <- accio_prob_richness_shifting_rates(pp[b:bins],qq[b:bins],tt[b:bins],max_S)
+xxx <- accersi_prob_richness_shifting_rates(pp[b:bins],qq[b:bins],tt[b:bins],max_S)
 prob_ex <- xxx[1,]
 if (b>1)	prob_ex <- c(rep(0,b-1),prob_ex)
 return(prob_ex)
 }
 
-accio_prob_paraclade_extant_shifting_rates_from_b_to_B <- function(b,pp,qq,tt,max_S=50)	{
+accersi_prob_paraclade_extant_shifting_rates_from_b_to_B <- function(b,pp,qq,tt,max_S=50)	{
 if (b%%25==0)	print(b)
 bins <- length(pp)
-xxx <- accio_prob_richness_shifting_rates(pp[b:bins],qq[b:bins],tt[b:bins],max_S)
+xxx <- accersi_prob_richness_shifting_rates(pp[b:bins],qq[b:bins],tt[b:bins],max_S)
 prob_srv <- 1-xxx[1,]
 if (b>1)	prob_srv <- c(rep(1,b-1),prob_srv)
 return(prob_srv)
@@ -3573,7 +3626,7 @@ for (b in lmp_b:1)	{
 return(prob_survival_t1_to_t2)
 }
 
-accio_extinction_rate_given_median_duration <- function(median_duration)	{
+accersi_extinction_rate_given_median_duration <- function(median_duration)	{
 mu <- -log(0.5)/median_duration
 return(mu)
 }
@@ -3605,7 +3658,7 @@ return (mu)
 }
 
 # get the overlap of two temporal duratins, with older durations having lower numbers
-accio_range_overlap <- function(fa1,la1,fa2,la2)	{
+accersi_range_overlap <- function(fa1,la1,fa2,la2)	{
 if ((fa1 <= fa2 && fa1 > la2) || (fa2 <= fa1 && fa2 > la1)) {
 #if (fa1 > la2 || fa2 > la1)	{
 	overlap <- c(min(fa1,fa2),max(la1,la2));
@@ -3615,7 +3668,7 @@ if ((fa1 <= fa2 && fa1 > la2) || (fa2 <= fa1 && fa2 > la1)) {
 return (overlap);
 }
 
-accio_range_overlaps_for_multiple_cases <- function(strat_ranges)	{
+accersi_range_overlaps_for_multiple_cases <- function(strat_ranges)	{
 if (strat_ranges$fa1 > strat_ranges$la2 || strat_ranges$fa2 > strat_ranges$la1)	{
 	overlap <- c(min(strat_ranges$fa1,strat_ranges$fa2),max(strat_ranges$la1,strat_ranges$la2));
 	}	else	{
@@ -3784,7 +3837,7 @@ for (ir in 2:length(interval_rates))	if (interval_rates[ir]!=interval_rates[ir-1
 return(rate_shifts);
 }
 
-accio_temporally_partitioned_diversification_rates_bottom_up <- function(data_for_p_or_q,max_rate,min_rate,ttl_data,interval_durations="")	{
+accersi_temporally_partitioned_diversification_rates_bottom_up <- function(data_for_p_or_q,max_rate,min_rate,ttl_data,interval_durations="")	{
 cl <- list(fnscale=-1);
 nbins <- nrow(data_for_p_or_q);
 if (length(interval_durations)<nbins)
@@ -3926,7 +3979,7 @@ names(output) <- c("models","loglikelihoods","AICc");
 return(output);
 }
 
-accio_temporally_partitioned_diversification_rates_top_down <- function(data_for_p_or_q,max_rate,min_rate,ttl_data,interval_durations="")	{
+accersi_temporally_partitioned_diversification_rates_top_down <- function(data_for_p_or_q,max_rate,min_rate,ttl_data,interval_durations="")	{
 cl <- list(fnscale=-1);
 nbins <- nrow(data_for_p_or_q);
 if (length(interval_durations)<nbins)
@@ -4090,4 +4143,118 @@ return(c(p_n,dpois((1:10),-1*log(p_n))));	# prob. of 1:10 finds given lambda & p
 #integrate(individual_lineage_myr,lower=0,upper=2,q=mu)$value
 }
 
+## Moved from RevBayes_Setup.r ###
+setup_three_timer_analysis <- function(samples_per_interval)	{
+# first written 2020-03-10
+# samples_per_interval: taxon x interval matrix giving # finds in each bin;
+taxon_ranges <- data.frame(taxon=as.character(rownames(samples_per_interval)),
+						   bin_lb=as.numeric(rep(0,nrow(samples_per_interval))),
+						   bin_ub=as.numeric(rep(0,nrow(samples_per_interval))),stringsAsFactors = F);
+rownames(taxon_ranges) <- rownames(samples_per_interval);
+nbins <- length(colnames(samples_per_interval));
+gappers <- vector(length=ncol(samples_per_interval));
+for (tr in 1:nrow(taxon_ranges))	{
+	this_record <- (1:nbins)[samples_per_interval[tr,]!=0];
+	taxon_ranges$bin_lb[tr] <- min(this_record);
+	taxon_ranges$bin_ub[tr] <- max(this_record);
+	this_range <- min(this_record):max(this_record);
+	if (length(this_range)>2)	{
+		gaps <- this_range[samples_per_interval[tr,this_range]==0];
+		gappers[gaps] <- gappers[gaps]+1;
+		}
+	}
+sampled_in_bin <- colSums(samples_per_interval);
+sepkoski_richness <- sampled_in_bin + gappers;
+names(sepkoski_richness) <- names(gappers) <- names(sampled_in_bin) <- colnames(samples_per_interval);
+output <- list(taxon_ranges,sepkoski_richness,gappers,sampled_in_bin);
+names(output) <- c("taxon_ranges","sepkoski_richness","gappers","sampled_in_bin");
+return(output);
+}
 
+accersi_best_diversification_given_sampling <- function(pmiss,S1,two_timer,gap_filler,continuous)	{
+# rate gives the proportion NOT shared between bins
+#		originations or extinctions for historical data
+# pmiss: typical probability of failing to sample a taxon;
+# S1: observed standing richness (no unsampled range-throughs);
+# two_timer: number shared with the prior interval;
+# gap_filler: number of unsampled taxa spanning a gap (synoptic - observed richness);
+# continuous: if T, then continuous diversification assumed; otherwise, pulsed.
+if (continuous==TRUE)	{
+	if ((two_timer+gap_filler)>0)	{
+		rate <- -log((two_timer+gap_filler)/S1);
+		}	else {
+		rate <- -log(pmiss/S1);
+		}
+	}	else {
+	rate <- 1-(two_timer/S1);
+	}
+# we expect to sample (1-pmiss) of the taxa.
+minrate <- 0;
+maxrate <- rate;	# no point in considering a rate higher than face value
+
+cl <- list(fnscale=-1);
+if ((two_timer+gap_filler)<S1 && rate>0)	{
+	accio <- optim(rate,fn=likelihood_diversification_rate_given_sampling,method="L-BFGS-B",pmiss=pmiss,S1=S1,two_timer=two_timer,gap_filler=gap_filler,continuous=continuous,lower=0,upper=maxrate,control=cl)
+	best_diversification <- max(0,accio$par)
+	L_best_diversification <- accio$value
+	}	else {
+	best_diversification <- 0.0
+	L_best_diversification <- 1.0
+	}
+return(c(best_diversification,log(L_best_diversification)))
+}
+
+likelihood_diversification_rate_given_sampling <- function(rate,pmiss,S1,two_timer,gap_filler,continuous)	{
+# rate: per-lineage rate
+#	poisson if continuous==TRUE; binomial if continuous==FALSE
+# pmiss: probability that an unobserved taxon is present-but-unsampled rather than non-existent
+# S1: observed richness in "test" interval
+# two_timer: shared richness
+# gap_filler: number of taxa inferred to be present because they are there before and after
+# continuous: TRUE for continuous turnover, FALSE for discrete turnover
+if (continuous==TRUE)	{
+	freq <- Poisson_rate_to_probability(rate)
+	}	else {
+	freq <- rate
+	}	# get expected frequency of shared taxa
+hS <- seq(two_timer+gap_filler,S1,by=1)	# range of possible shared taxa; max=S1, min=observed+directly inferred
+pt <- prob_observing_n_shared_given_diversification_sampling_and_hypothesized_shared(n=two_timer,S1=S1,S2=hS,freq_turn=freq,pmiss=pmiss)
+
+return(max(10^-320,sum(pt)))
+}
+
+# function to calculate probability of observing n of N shared taxa give sampling
+#	x probability of N survivors given extinction/origination/beta & S1 original taxa
+prob_observing_n_shared_given_diversification_sampling_and_hypothesized_shared <- function(n,S1,S2,freq_turn,pmiss)	{
+# S1 = observed in bin
+# S2 = hypothesized in other bin
+# n = observed shared
+# freq_turn=expected n=(S1-S2)S1
+# pfind = prob finding taxon
+#return(dbinom(S1-S2,S1,freq_turn)*dbinom(n,S2,pfind))
+return(dbinom(S1-S2,S1,freq_turn)*pmiss^(S2-n))
+}
+
+#### Subsampling Routines ####
+convert_finds_per_taxon_for_subsampling <- function(Xi)	{
+# Xi: number of specimens/occurrences for each taxon i
+taxon_finds<-vector(length=sum(Xi))
+s <- length(Xi);
+j <- 1;
+for (i in 1:s)	{
+	for (k in j:(j+Xi[i]))	taxon_finds[k] <- i;
+	j <- j+Xi[i];
+	}
+return(taxon_finds)
+}
+
+shareholder_quorum_subsampling<-function(taxon_finds,coverage)	{
+n<-round(coverage*length(taxon_finds))
+return(length(unique(permute(taxon_finds)[1:n])))
+}
+
+shareholder_quorum_subsampling_higher_taxa_given_lower_taxa <- function(taxon_finds,higher_taxa,coverage)	{
+n <- round(coverage*length(taxon_finds));
+subsamp <- permute(taxon_finds)[1:n];
+return(length(unique(higher_taxa[subsamp])));
+}
