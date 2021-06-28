@@ -147,7 +147,8 @@ return(bH)
 
 # routine to estimate most likely uniform rate of sampling/occupancy given finds & possible finds
 optimize_uniform_occupancy <- function(finds,ncoll)	{
-observed <- fisher_plot(finds)
+#observed <- fisher_plot(finds);
+observed <- hist(finds,breaks=0:max(finds),plot=F)$counts;
 oS <- length(finds[finds>0])	# observed taxa
 minS <- stS <- length(finds)
 pa <- 1
