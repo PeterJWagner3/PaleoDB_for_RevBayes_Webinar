@@ -77,9 +77,8 @@ return(bin_finds);
 
 # count rock-units occupied by subintervals, with possible fractional counts
 tally_collections_occupied_by_subinterval <- function(taxon_collections,hierarchical_chronostrat,constrain=F,temporal_precision=0.1)	{
-# coll_no: collection number
+# taxon_collections: collection number
 # early_interval: earliest possible chronostratigraphic interval for corresponding coll_no
-# late_interval: lateest possible chronostratigraphic interval for corresponding coll_no
 # hierarchical_chronostrat: table denoting which chronostratigraphic units are subunits of others
 # constrain: return only relevant time intervals; otherwise, return results for entire time scale.
 finest_chronostrat <- subset(hierarchical_chronostrat,hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last);
@@ -179,6 +178,7 @@ while (rn < length(unique_rocks))	{
 return(colSums(rock_finds))
 }
 
+#taxon <- "Shumardia (Shumardia)";constrain=F;temporal_precision=0.1
 tally_rock_units_occupied_by_subinterval_sapply <- function(taxon,all_finds,all_sites,hierarchical_chronostrat,constrain=F,temporal_precision=0.1)	{
 # coll_no: collection number
 # early_interval: earliest possible chronostratigraphic interval for corresponding coll_no
@@ -289,12 +289,13 @@ while (r_c < nrow(relevant_collections))	{
 	if (aa==zz)	{
 		prob_find_this_case[aa] <- 1;
 		} else	{
-		for (bb in aa:zz)	{
-			accersi_temporal_overlap(lb1=finest_chronostrat$ma_lb[bb],ub1=finest_chronostrat$ma_ub[bb],
-									 lb2=relevant_collections$ma_lb[r_c],ub2=relevant_collections$ma_ub[r_c])
-				}
+		# why was this here? why were the commands below indented?
+		#for (bb in aa:zz)	{
+		#	accersi_temporal_overlap(lb1=finest_chronostrat$ma_lb[bb],ub1=finest_chronostrat$ma_ub[bb],
+		#							 lb2=relevant_collections$ma_lb[r_c],ub2=relevant_collections$ma_ub[r_c])
+		#		}
 
-			if (relevant_collections$ma_lb[r_c]!=relevant_collections$ma_ub[r_c])	{
+		if (relevant_collections$ma_lb[r_c]!=relevant_collections$ma_ub[r_c])	{
 			ma_range <- abs(relevant_collections$ma_lb[r_c]-relevant_collections$ma_ub[r_c]);
 			range_start <- relevant_collections$ma_lb[r_c];
 			range_end <- relevant_collections$ma_ub[r_c];
@@ -336,7 +337,9 @@ while (r_c < nrow(relevant_collections))	{
 	r_c <- r_c+1;
 	prob_find_this_case <- array(0,dim=c(length(finest_chronostrat$interval)));
 	aa <- min(finest_chronostrat$bin_first[match(relevant_collections$interval_lb[r_c],finest_chronostrat$interval)]);
+	if (is.na(aa))	aa <- finest_chronostrat$bin_first[sum(relevant_collections$ma_lb[r_c]<=finest_chronostrat$ma_lb)]
 	zz <- max(finest_chronostrat$bin_last[match(relevant_collections$interval_ub[r_c],finest_chronostrat$interval)]);
+	if (is.na(zz))	zz <- finest_chronostrat$bin_first[sum(relevant_collections$ma_ub[r_c]<finest_chronostrat$ma_lb)];
 	if (aa==zz)	{
 		prob_find_this_case[aa] <- 1;
 		} else	{
@@ -350,6 +353,10 @@ while (r_c < nrow(relevant_collections))	{
 			range_end <- mean(finest_chronostrat$ma_lb[zz],finest_chronostrat$ma_ub[zz]);
 			}
 		ma_range_finds <- array(1/(ma_range/temporal_precision),dim=c(ma_range/temporal_precision));
+		if (length(ma_range_finds)==0)	{
+			temporal_precision <- ma_range;
+			ma_range_finds <- array(1/(ma_range/temporal_precision),dim=c(ma_range/temporal_precision));
+			}
 		ma_range_subbin_finds <- temporal_precision/ma_range;
 		ma_range_find_ages <- round(seq(range_start-temporal_precision,range_end,by=-temporal_precision),round_level);
 		for (bn in aa:zz)	{
@@ -1011,6 +1018,40 @@ names(output_fa_la) <- c("FA_Bin","LA_Bin","FA_Ma","LA_Ma")
 return(output_fa_la)
 }
 
+## get first and last appearance dates ##
+accersi_taxon_fa_lb <- function(taxon,taxon_finds,pbdb_sites)  {
+return(max(pbdb_sites$ma_lb[match(unique(taxon_finds$collection_no[unique(which(taxon_finds==taxon,arr.ind=T)[,1])]),pbdb_sites$collection_no)]));
+}
+
+accersi_taxon_fa_ub <- function(taxon,taxon_finds,pbdb_sites)  {
+return(max(pbdb_sites$ma_ub[match(unique(taxon_finds$collection_no[unique(which(taxon_finds==taxon,arr.ind=T)[,1])]),pbdb_sites$collection_no)]));
+}
+
+accersi_taxon_la_lb <- function(taxon,taxon_finds,pbdb_sites)  {
+return(min(pbdb_sites$ma_lb[match(unique(taxon_finds$collection_no[unique(which(taxon_finds==taxon,arr.ind=T)[,1])]),pbdb_sites$collection_no)]));
+}
+
+accersi_taxon_la_ub <- function(taxon,taxon_finds,pbdb_sites)  {
+return(min(pbdb_sites$ma_ub[match(unique(taxon_finds$collection_no[unique(which(taxon_finds==taxon,arr.ind=T)[,1])]),pbdb_sites$collection_no)]));
+}
+
+accersi_taxon_fa_and_la_dates <- function(taxon,pbdb_finds,pbdb_sites)	{
+taxon_found <- which(pbdb_finds==taxon,arr.ind = T);
+taxon_rank <- colnames(pbdb_finds)[unique(taxon_found[,2])][colnames(pbdb_finds)[unique(taxon_found[,2])] %in% taxonomic_rank];
+taxon_col <- match(taxon_rank,colnames(pbdb_finds));
+taxon_finds <- pbdb_finds[pbdb_finds[,taxon_col] %in% taxon,];
+output_fa_la <- data.frame(fa_lb=0,fa_ub=0,la_lb=0,la_ub=0);
+rownames(output_fa_la) <- taxon;
+if (nrow(taxon_finds)>0)	{
+	output_fa_la$fa_lb <- accersi_taxon_fa_lb(taxon,taxon_finds,pbdb_sites);
+	output_fa_la$fa_ub <- accersi_taxon_fa_ub(taxon,taxon_finds,pbdb_sites);
+	output_fa_la$la_lb <- accersi_taxon_la_lb(taxon,taxon_finds,pbdb_sites);
+	output_fa_la$la_ub <- accersi_taxon_la_ub(taxon,taxon_finds,pbdb_sites);
+	}
+return(output_fa_la)
+}
+
+
 ### ROUTINE TO GET FINDS FOR ONE TAXON FROM STANDARD OCCURRENCE FILE 2017-05-04
 accersi_occurrences_per_bin_per_taxon_from_occurence_file <- function(file_name,header=TRUE,bin_col=1,loc_col=2,taxon_col,lump=TRUE)	{
 # file_name: occurrence data from a flat file with columns giving bin #, locality # & taxon #
@@ -1273,6 +1314,11 @@ taxon <- taxon_names;
 #compend <- data.frame(base::t(pbapply::pbsapply(taxon,sepkoskify_paleodb_data_one_taxon,pbdb_finds,transpose=T)));
 compendium <- data.frame(base::t(pbapply::pbsapply(taxon,sepkoskify_paleodb_data_one_taxon,pbdb_finds,transpose=T)));
 colnames(compendium) <- c("taxon","bin_lb","bin_ub","ma_max","ma_min")
+compendium$taxon <- as.character(compendium$taxon);
+compendium$bin_lb <- as.numeric(compendium$bin_lb);
+compendium$bin_ub <- as.numeric(compendium$bin_ub);
+compendium$ma_max <- as.numeric(compendium$ma_max);
+compendium$ma_min <- as.numeric(compendium$ma_min);
 return(compendium);
 }
 
@@ -1468,55 +1514,71 @@ if (length(definite_bins)>0)	{
 return(output);
 }
 
-#taxon <- taxon_names[1]
+#taxon <- "Persia hallami"
 #all_finds <- paleodb_finds;
 tally_fuzzy_stratigraphic_ranges_sapply <- function(taxon,all_finds,hierarchical_chronostrat,precision=0.1)	{
 #finest_chronostrat <- hierarchical_chronostrat[hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last,];
 #rebin_collection_with_time_scale(age=max(ma_ub),"end",)
 #sum(max(ma_ub)<=finest_chronostrat$ma_ub)
-taxon_finds <- subset(all_finds,all_finds$accepted_name==taxon);
-if (nrow(taxon_finds)==0)
-	taxon_finds <- subset(all_finds,all_finds$genus==taxon);
-interval_lb <- taxon_finds$interval_lb;
-interval_ub <- taxon_finds$interval_ub;
-ma_lb <- taxon_finds$ma_lb;
-ma_ub <- taxon_finds$ma_ub;
-
-fa_latest <- min(hierarchical_chronostrat$bin_last[match(interval_ub,hierarchical_chronostrat$interval)]);
-la_earliest <- max(hierarchical_chronostrat$bin_first[match(interval_lb,hierarchical_chronostrat$interval)]);
-
-#ttl_finds <- length(coll_no);
-bins_early <- hierarchical_chronostrat$bin_first[match(interval_lb,hierarchical_chronostrat$interval)];
-bins_late <- hierarchical_chronostrat$bin_last[match(interval_ub,hierarchical_chronostrat$interval)];
-bins_early[bins_early<fa_latest] <- fa_latest;
-bins_late[bins_late>la_earliest] <- la_earliest;
-
-definite_bins <- unique(bins_early[bins_early==bins_late]);
-output <- data.frame(ma_fa_lb=0,ma_fa_ub=0,ma_la_lb=0,ma_la_ub=0,interval_lb=as.character(""),interval_ub=as.character(""),stringsAsFactors=hell_no);
-finest_chronostrat <- hierarchical_chronostrat[hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last,];
-if (length(definite_bins)>0)	{
-#	finest_chronostrat <- hierarchical_chronostrat[hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last,];
-#	cbind(ma_lb,ma_ub)
-	# extremes are easy
-	output$ma_fa_lb <- as.numeric(max(ma_lb));						# earliest possible FA
-	output$ma_la_ub <- as.numeric(min(ma_ub));						# latest possible LA
-	# latest FA must precede or coincide with latest possible LA & vice versa
-#	output$ma_fa_mn <- min(ma_ub[ma_lb>min(ma_ub)])+0.1;
-	output$ma_fa_ub <- as.numeric(max(ma_ub))+precision;						# latest possible FA
-	output$ma_la_lb <- as.numeric(min(ma_lb))-precision;						# earliest possible LA
-	output$interval_lb <- as.character(finest_chronostrat$interval[match(min(definite_bins),finest_chronostrat$bin_first)]);
-	output$interval_ub <- as.character(finest_chronostrat$interval[match(max(definite_bins),finest_chronostrat$bin_first)]);
+if (is.null(all_finds$ma_lb))	{
+	print("You must first append the maximum and minimum possible ages on these finds.")
+	print("For example, use finds$ma_lb <- sites$max_ma[match(finds$collection_no,sites$collection_no)]");
+	return(NULL);
 	} else	{
-#	output$ma_fa_lb <- as.numeric(max(ma_lb));						# earliest possible FA
-#	output$ma_fa_ub <- as.numeric(max(ma_ub));						# earliest possible FA
-#	output$ma_la_lb <- as.numeric(min(ma_lb));						# earliest possible FA
-#	output$ma_la_ub <- as.numeric(min(ma_ub));						# earliest possible FA
-#	output$interval_lb <- rebin_collection_with_time_scale(age=output$ma_fa_lb,"onset",finest_chronostrat);
-#	output$interval_ub <- rebin_collection_with_time_scale(age=output$ma_la_ub,"end",finest_chronostrat);
-	}
-return(output);
-}
+	taxon_finds <- subset(all_finds,all_finds$accepted_name==taxon);
+	#cbind(taxon_finds$max_ma,taxon_finds$min_ma,taxon_finds$ma_lb,taxon_finds$ma_ub)
+	#taxon_finds <- all_finds[all_finds$accepted_name %in% taxon,];
+	if (nrow(taxon_finds)==0)	taxon_finds <- subset(all_finds,all_finds$genus==taxon);
+	interval_lb <- taxon_finds$interval_lb;
+	interval_ub <- taxon_finds$interval_ub;
+	ma_lb <- taxon_finds$ma_lb;
+	ma_ub <- taxon_finds$ma_ub;
 
+	fa_latest <- min(hierarchical_chronostrat$bin_last[match(interval_ub,hierarchical_chronostrat$interval)]);
+	la_earliest <- max(hierarchical_chronostrat$bin_first[match(interval_lb,hierarchical_chronostrat$interval)]);
+
+	finest_chronostrat <- hierarchical_chronostrat[hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last,];
+	if (is.na(fa_latest))	{
+		age <- all_finds$ma_lb;
+		all_finds$interval_lb <- sapply(age,rebin_collection_with_time_scale,"onset",finest_chronostrat)
+		age <- all_finds$ma_ub;
+		all_finds$interval_ub <- sapply(age,rebin_collection_with_time_scale,"end",finest_chronostrat)
+		fa_latest <- min(hierarchical_chronostrat$bin_last[match(interval_ub,hierarchical_chronostrat$interval)]);
+		la_earliest <- max(hierarchical_chronostrat$bin_first[match(interval_lb,hierarchical_chronostrat$interval)]);
+		}
+
+	#ttl_finds <- length(coll_no);
+	bins_early <- hierarchical_chronostrat$bin_first[match(interval_lb,hierarchical_chronostrat$interval)];
+	bins_late <- hierarchical_chronostrat$bin_last[match(interval_ub,hierarchical_chronostrat$interval)];
+	bins_early[bins_early<fa_latest] <- fa_latest;
+	bins_late[bins_late>la_earliest] <- la_earliest;
+
+	definite_bins <- unique(bins_early[bins_early==bins_late]);
+	if (length(definite_bins)>0)	definite_bins <- min(definite_bins):max(definite_bins);
+	output <- data.frame(ma_fa_lb=0,ma_fa_ub=0,ma_la_lb=0,ma_la_ub=0,interval_lb=as.character(""),interval_ub=as.character(""),stringsAsFactors=hell_no);
+	#finest_chronostrat <- hierarchical_chronostrat[hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last,];
+	if (length(definite_bins)>0)	{
+	#	finest_chronostrat <- hierarchical_chronostrat[hierarchical_chronostrat$bin_first==hierarchical_chronostrat$bin_last,];
+	#	cbind(ma_lb,ma_ub)
+		# extremes are easy
+		output$ma_fa_lb <- as.numeric(max(ma_lb));						# earliest possible FA
+		output$ma_la_ub <- as.numeric(min(ma_ub));						# latest possible LA
+		# latest FA must precede or coincide with latest possible LA & vice versa
+		output$ma_fa_ub <- as.numeric(max(ma_ub));						# latest possible FA
+		output$ma_la_lb <- as.numeric(min(ma_lb));						# earliest possible LA
+		output$interval_lb <- as.character(finest_chronostrat$interval[match(min(definite_bins),finest_chronostrat$bin_first)]);
+		output$interval_ub <- as.character(finest_chronostrat$interval[match(max(definite_bins),finest_chronostrat$bin_first)]);
+		} else	{
+		output$ma_fa_lb <- as.numeric(max(ma_lb));						# earliest possible FA
+		output$ma_fa_ub <- as.numeric(max(ma_ub));						# earliest possible FA
+		output$ma_la_lb <- as.numeric(min(ma_lb));						# earliest possible FA
+		output$ma_la_ub <- as.numeric(min(ma_ub));						# earliest possible FA
+		output$interval_lb <- rebin_collection_with_time_scale(age=output$ma_fa_lb,"onset",finest_chronostrat);
+		output$interval_ub <- rebin_collection_with_time_scale(age=output$ma_la_ub,"end",finest_chronostrat);
+		}
+	return(output);
+	}
+}
 
 # find collections that might be in 2+ chronostratigraphic bins
 tally_fuzzy_stratigraphic_ranges <- function(ma_lb,ma_ub,interval_lb,interval_ub,hierarchical_chronostrat,precision=0.1)	{
@@ -1728,7 +1790,7 @@ return(min_range_data);
 # paleodb_collections_old = paleodb_collections
 # paleodb_collections = refined_collections
 # routine to opimize the stage of uncertain collections based on fossil assemblages.
-optimo_paleodb_collection_and_occurrence_stratigraphy_old <- function(paleodb_finds,paleodb_collections,hierarchical_chronostrat,zone_database,update_search=T)	{
+suboptimo_paleodb_collection_and_occurrence_stratigraphy_old <- function(paleodb_finds,paleodb_collections,hierarchical_chronostrat,zone_database,update_search=T)	{
 # rescore collections if there is any lumping of reported stages into useful stages
 ncolls <- nrow(paleodb_collections);
 nstages <- max(hierarchical_chronostrat$bin_last);
@@ -1823,6 +1885,7 @@ for (zt in 1:length(zone_taxa))	{
 #which(is.na(minimum_range_data),arr.ind = T)
 bin_lb <- hierarchical_chronostrat$bin_first[match(paleodb_collections$interval_lb,hierarchical_chronostrat$interval)];
 bin_ub <- hierarchical_chronostrat$bin_last[match(paleodb_collections$interval_ub,hierarchical_chronostrat$interval)];
+#paleodb_collections$interval_lb[is.na(match(paleodb_collections$interval_lb,hierarchical_chronostrat$interval))]
 # kluge: eliminate the need for this;
 xx <- (1:ncolls)[bin_lb>bin_ub];
 if (length(xx)>0)	{
@@ -2973,6 +3036,7 @@ return(output);
 }
 
 # split taxa with overlong gaps into two taxa
+#finds_per_bin=sites_per_interval_rd;taxon_ranges="";bins="";taxa="";max_gap=5
 divido_gaps_within_ranges <- function(finds_per_bin,taxon_ranges="",bins="",taxa="",max_gap=3)	{
 ntaxa <- nrow(finds_per_bin);
 nbins <- ncol(finds_per_bin);

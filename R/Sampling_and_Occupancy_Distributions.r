@@ -10,7 +10,9 @@ library(subplex)
 ZERO <- 5e-324
 MINEXPN <- 10^-10
 MINNO <- 5e-324
+standard_pbdb_taxon_ranks <- c("phylum","class","order","family","genus","subgenus","species","subspecies");
 
+# Basic Data Summaries/Organizations ####
 # routine to count collectins per sampling bin
 count_collections_per_bin <- function(bin,locality_info)	{
 return(sum(locality_info$Bin==bin))
@@ -24,22 +26,313 @@ b <- (1:max(collections$Bin))
 return(sapply(b,count_collections_per_bin,locality_info=taxon_localities))
 }
 
-#### INFORMATION THEORY 101 ####
-# first-order AIC
-AIC <- function(lnL,k)	{
-# L: log-likelihood; # k: parameters; # n: data points
-return((-2*lnL)+(2*k))
+# written 2022-05-01
+numerare_rock_units_per_bin_w_pbdb_data_one_taxon <- function(taxon,paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy=F)	{
+taxon_cols <- match(c("accepted_name",standard_pbdb_taxon_ranks),colnames(paleodb_finds));
+taxon_cols <- taxon_cols[!is.na(taxon_cols)];
+tx_col <- max(taxon_cols[unique(which(paleodb_finds[,taxon_cols]==taxon,arr.ind = T)[,2])]);
+#print(tx_col);
+tx_col <- tx_col[tx_col %in% taxon_cols];
+if (length(tx_col)==0)	{
+#	print(paste(taxon,"is not found"));
+#	print(dim(paleodb_finds));
+	return();
+	} else 	{
+	taxon_finds <- paleodb_finds[paleodb_finds[,tx_col]==taxon,];
+	taxon_sites <- unique(pbdb_sites[pbdb_sites$collection_no %in% taxon_finds$collection_no,]);
+	if (is.null(taxon_sites$bin_lb))	{
+		if (is.null(taxon_sites$ma_lb))	{
+			age <- taxon_sites$max_ma;
+			taxon_sites$bin_lb <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="onset",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			age <- taxon_sites$min_ma;
+			taxon_sites$bin_ub <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="end",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			} else	{
+			age <- taxon_sites$ma_lb;
+			taxon_sites$bin_lb <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="onset",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			age <- taxon_sites$ma_ub;
+			taxon_sites$bin_ub <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="end",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			}
+		}
+	taxon_sites$occupation <- taxon_sites$pbdb_formation_no+(taxon_sites$bin_lb/1000);
+	taxon_sites_def <- taxon_sites[taxon_sites$bin_lb==taxon_sites$bin_ub,];
+	occupations <- unique(taxon_sites_def$occupation);
+	taxon_sites_def <- taxon_sites_def[match(occupations,taxon_sites_def$occupation),];
+	rocks_per_bin <- hist(taxon_sites_def$bin_lb,breaks=0:nrow(finest_chronostrat),plot=F)$counts;
+	if (fuzzy)	{
+		# THIS NEEDS WORK!!!! #
+		taxon_sites_fzy <- taxon_sites[taxon_sites$bin_lb!=taxon_sites$bin_ub,];
+		fuzzies_per_bin <- quamquam_collections_per_bin_w_pbdb_data(taxon_sites_fzy,finest_chronostrat)
+		rocks_per_bin <- rocks_per_bin+fuzzies_per_bin;
+		}
+	return(rocks_per_bin);
+#	taxon_sites_fzy <- taxon_sites[taxon_sites$bin_lb!=taxon_sites$bin_ub,];
+	}
 }
 
+# written 2022-05-01
+numerare_rock_units_per_bin_w_pbdb_data <- function(taxa,paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy=F)	{
+#ntaxa <- length(taxa);
+#nbins <- nrow(finest_chronostrat);
+#rocks_per_bin <- array(0,dim=c(ntaxa,nbins));
+#colnames(rocks_per_bin) <- finest_chronostrat$interval;
+#rownames(rocks_per_bin) <- taxa;
+#for (ng in 1:ntaxa)	rocks_per_bin[ng,] <- numerare_rock_units_per_bin_w_pbdb_data_one_taxon(taxon=taxa[ng],paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy);
+#taxon <- taxa;
+frak_me <- pbapply::pbsapply(taxa,numerare_rock_units_per_bin_w_pbdb_data_one_taxon,paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy);
+rocks_per_bin <- base::t(frak_me);
+colnames(rocks_per_bin) <- finest_chronostrat$interval;
+rownames(rocks_per_bin) <- taxa;
+#for (ng in 1:ntaxa)	rocks_per_bin[ng,] <- frak_me[[ng]];
+return(rocks_per_bin);
+}
+
+# written 2022-04-15
+# taxa=all_genera;paleodb_finds=group_finds;paleodb_sites=test_sites;finest_chronostrat = finest_chronostrat; taxon=taxa[1]
+numerare_collections_per_bin_w_pbdb_data_one_taxon <- function(taxon,paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy=F)	{
+taxon_cols <- match(c(standard_pbdb_taxon_ranks,"accepted_name"),colnames(paleodb_finds));
+taxon_cols <- sort(taxon_cols[!is.na(taxon_cols)]);
+tx_col <- max(taxon_cols[unique(which(paleodb_finds[,taxon_cols]==taxon,arr.ind = T)[,2])]);
+#print(tx_col);
+tx_col <- tx_col[tx_col %in% taxon_cols];
+if (length(tx_col)==0)	{
+#	print(paste(taxon,"is not found"));
+#	print(dim(paleodb_finds));
+	return();
+	} else 	{
+	taxon_finds <- paleodb_finds[paleodb_finds[,tx_col]==taxon,];
+	taxon_sites <- unique(pbdb_sites[pbdb_sites$collection_no %in% taxon_finds$collection_no,]);
+	if (is.null(taxon_sites$bin_lb))	{
+		if (is.null(taxon_sites$ma_lb))	{
+			age <- taxon_sites$max_ma;
+			taxon_sites$bin_lb <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="onset",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			age <- taxon_sites$min_ma;
+			taxon_sites$bin_ub <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="end",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			} else	{
+			age <- taxon_sites$ma_lb;
+			taxon_sites$bin_lb <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="onset",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			age <- taxon_sites$ma_ub;
+			taxon_sites$bin_ub <- match(sapply(age,rebin_collection_with_time_scale,onset_or_end="end",fine_time_scale=finest_chronostrat),finest_chronostrat$interval);
+			}
+		}
+	taxon_sites_def <- taxon_sites[taxon_sites$bin_lb==taxon_sites$bin_ub,];
+	finds_per_bin <- hist(taxon_sites_def$bin_lb,breaks=0:nrow(finest_chronostrat),plot=F)$counts;
+	if (fuzzy)	{
+		taxon_sites_fzy <- taxon_sites[taxon_sites$bin_lb!=taxon_sites$bin_ub,];
+		fuzzies_per_bin <- quamquam_collections_per_bin_w_pbdb_data(taxon_sites_fzy,finest_chronostrat)
+		finds_per_bin <- finds_per_bin+fuzzies_per_bin;
+		}
+	return(finds_per_bin);
+#	taxon_sites_fzy <- taxon_sites[taxon_sites$bin_lb!=taxon_sites$bin_ub,];
+	}
+}
+
+numerare_collections_per_bin_w_pbdb_data <- function(taxa,paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy=F)	{
+ntaxa <- length(taxa);
+nbins <- nrow(finest_chronostrat);
+finds_per_bin <- array(0,dim=c(ntaxa,nbins));
+colnames(finds_per_bin) <- finest_chronostrat$interval;
+rownames(finds_per_bin) <- taxa;
+for (ng in 1:ntaxa)	finds_per_bin[ng,] <- numerare_collections_per_bin_w_pbdb_data_one_taxon(taxon=taxa[ng],paleodb_finds,paleodb_sites,finest_chronostrat,fuzzy);
+return(finds_per_bin)
+}
+
+# quamquam is roughly latin for fuzzy!
+quamquam_collections_per_bin_w_pbdb_data <- function(taxon_sites_fzy,finest_chronostrat)	{
+fsites <- nrow(taxon_sites_fzy);
+if (is.null(taxon_sites_fzy$ma_lb))	colnames(taxon_sites_fzy)[colnames(taxon_sites_fzy) %in% c("max_ma","min_ma")] <- c("ma_lb","ma_ub");
+unique_date_ranges <- unique(data.frame(ma_lb=taxon_sites_fzy$ma_lb,ma_ub=taxon_sites_fzy$ma_ub,
+								 bin_lb=taxon_sites_fzy$bin_lb,bin_ub=taxon_sites_fzy$bin_ub));
+u_d_r <- nrow(unique_date_ranges);
+nbins <- nrow(finest_chronostrat);
+fuzz_per_bin <- array(0,dim=nbins);
+for (ur in 1:u_d_r)	{
+	u_sites <- taxon_sites_fzy[taxon_sites_fzy$ma_lb==unique_date_ranges$ma_lb[ur],];
+	u_sites <- u_sites[u_sites$ma_ub==unique_date_ranges$ma_ub[ur],];
+	uspan <- unique_date_ranges[ur,1]-unique_date_ranges[ur,2];
+	pbin <- vector(length=nbins);
+	for (pb in unique_date_ranges$bin_lb[ur]:unique_date_ranges$bin_ub[ur])	{
+		if (unique_date_ranges$ma_lb[ur]<finest_chronostrat$ma_lb[pb])	{
+			pbin[pb] <- abs(unique_date_ranges$ma_lb[ur]-finest_chronostrat$ma_ub[pb])/uspan;
+			} else if (unique_date_ranges$ma_ub[ur]>finest_chronostrat$ma_ub[pb])	{
+			pbin[pb] <- abs(unique_date_ranges$ma_ub[ur]-finest_chronostrat$ma_lb[pb])/uspan;
+			} else	{
+			pbin[pb] <- abs(finest_chronostrat$ma_lb[pb]-finest_chronostrat$ma_ub[pb])/uspan;
+			}
+		}
+	fuzz_per_bin <- fuzz_per_bin+pbin;
+#	lnp_abs <- lnp_abs+log((1-pbin)^nrow(u_sites));
+	}
+return(fuzz_per_bin);
+#p_pres <- 1-exp(lnp_abs);
+}
+
+prob_present_in_interval <- function(taxon,all_finds,all_sites,finest_chronostrat,temporal_precision=0.1,debug=F)	{
+# written 2021-08-22
+# NOTE: although you SHOULD be able to use sapply for this function, it somehow changes
+#	the ages of collections.
+# coll_no: collection number
+# early_interval: earliest possible chronostratigraphic interval for corresponding coll_no
+# late_interval: lateest possible chronostratigraphic interval for corresponding coll_no
+# finest_chronostrat: table denoting which chronostratigraphic units are subunits of others
+# constrain: return only relevant time intervals; otherwise, return results for entire time scale.
+taxon_collections <- all_sites[all_sites$collection_no %in% unique(all_finds$collection_no[all_finds$accepted_name==taxon]),];
+if (nrow(taxon_collections)==0)
+	taxon_collections <- all_sites[all_sites$collection_no %in% unique(all_finds$collection_no[all_finds$identified_name==taxon]),];
+if (nrow(taxon_collections)==0)
+	taxon_collections <- all_sites[all_sites$collection_no %in% unique(all_finds$collection_no[all_finds$genus==taxon]),];
+nfinds <- nrow(taxon_collections);
+if (sum(taxon_collections$ma_lb<taxon_collections$ma_ub)>0)	{
+	effu <- (1:nfinds)[taxon_collections$ma_lb<taxon_collections$ma_ub];
+	dummy_lb <- taxon_collections$ma_lb[effu];
+	taxon_collections$ma_lb[effu] <- taxon_collections$ma_ub[effu];
+	taxon_collections$ma_ub[effu] <- dummy_lb;
+	age <- taxon_collections$ma_lb[effu];
+	taxon_collections$interval_lb[effu] <- sapply(age,rebin_collection_with_time_scale,"onset",fine_time_scale=finest_chronostrat);
+	age <- taxon_collections$ma_ub[effu];
+	taxon_collections$interval_ub[effu] <- sapply(age,rebin_collection_with_time_scale,"end",finest_chronostrat);
+	}
+
+fa_latest <- min(finest_chronostrat$bin_first);
+la_earliest <- max(finest_chronostrat$bin_last);
+
+#p_site_in_bin <- data.frame(array(0,dim=c(nrow(taxon_collections),1+abs(la_earliest-fa_latest))));
+#colnames(p_site_in_bin) <- finest_chronostrat$interval;
+
+#for (cn in 1:nrow(taxon_collections))	{
+#	coll_no <- taxon_collections$collection_no[cn];
+#	p_site_in_bin[cn,] <- prob_site_in_bin(coll_no,pbdb_localities=taxon_collections,finest_chronostrat = finest_chronostrat,temporal_precision = temporal_precision,debug=1);
+##	xx <- prob_site_in_bin(coll_no,pbdb_localities=taxon_collections,finest_chronostrat = finest_chronostrat,temporal_precision = temporal_precision,debug=1);
+#	}
+coll_no <- taxon_collections$collection_no;
+#for (cn in 1:length(coll_no))	nn <- prob_site_in_bin(coll_no[cn],pbdb_localities=taxon_collections,finest_chronostrat = finest_chronostrat,temporal_precision = temporal_precision);
+p_site_in_bin <- as.data.frame.array(base::t(sapply(coll_no,prob_site_in_bin,pbdb_localities=taxon_collections,finest_chronostrat = finest_chronostrat,temporal_precision = temporal_precision,debug=debug)),row.names = coll_no,stringsAsFactors=hell_no);
+colnames(p_site_in_bin) <- finest_chronostrat$interval;
+
+#for (cn in 1:nrow(taxon_collections))	{
+#	relevant_collections <- taxon_collections[cn,];
+#	p_site_in_bin[cn,] <- count_units_per_bin_fuzzily(relevant_collections,finest_chronostrat = finest_chronostrat,temporal_precision = temporal_precision);
+#	}
+# prob. present = 1 - e^∑log(1-P[collection in bin])
+prob_present <- 1-exp(colSums(log(1-p_site_in_bin)));
+#if (max(taxon_collections$ma_ub)>min(taxon_collections$ma_lb))	{
+#	rt_lb <- sum(finest_chronostrat$ma_lb>max(taxon_collections$ma_ub));
+#	rt_ub <- sum(finest_chronostrat$ma_lb>min(taxon_collections$ma_lb));
+#	prob_present[rt_lb:rt_ub] <- 1.0;
+#	}
+return(prob_present);
+}
+
+#coll_no <- taxon_collections$collection_no[cn];
+#pbdb_localities <- taxon_collections;
+prob_site_in_bin <- function(coll_no,pbdb_localities,finest_chronostrat,temporal_precision=0.1,debug=F)	{
+# WARNING: if you use sapply(coll_no,prob_site_in_bin,pbdb_localities,finest_chronostrat), then
+#  somehow the ages of sites get distorted.
+# coll_no: collection number
+# pbdb_localities: pbdb_collections
+# finest_chronostrat: table denoting which chronostratigraphic units are subunits of others
+# temporal_precision: how exact we want the numbers to be.
+#print(coll_no);
+relevant_collection <- pbdb_localities[pbdb_localities$collection_no==coll_no,];
+round_level <- ceiling(-log10(temporal_precision));
+if (is.null(relevant_collection$ma_lb))	relevant_collection$ma_lb <- relevant_collection$max_ma;
+if (is.null(relevant_collection$ma_ub))	relevant_collection$ma_ub <- relevant_collection$min_ma;
+prob_find_each_bin <- array(0,dim=c(length(finest_chronostrat$interval)));
+#	aa <- min(finest_chronostrat$bin_first[match(relevant_collections$interval_lb,finest_chronostrat$interval)]);
+#	if (is.na(aa) || is.infinite(abs(aa)))	aa <- finest_chronostrat$bin_first[sum(relevant_collections$ma_lb<=finest_chronostrat$ma_lb)];
+aa <- finest_chronostrat$bin_first[sum(relevant_collection$ma_lb<=finest_chronostrat$ma_lb)];
+#	zz <- max(finest_chronostrat$bin_last[match(relevant_collections$interval_ub,finest_chronostrat$interval)]);
+#	if (is.na(zz) || is.infinite(abs(zz)))	zz <- finest_chronostrat$bin_first[sum(relevant_collections$ma_ub<finest_chronostrat$ma_lb)];
+zz <- finest_chronostrat$bin_first[sum(relevant_collection$ma_ub<finest_chronostrat$ma_lb)];
+if (debug)	print(c(relevant_collection$collection_no,aa,zz,relevant_collection$ma_lb,relevant_collection$ma_ub));
+if (aa==zz)	{
+	prob_find_each_bin[aa] <- 1;
+	} else	{
+	if (relevant_collection$ma_lb!=relevant_collection$ma_ub)	{
+		ma_range <- abs(relevant_collection$ma_lb-relevant_collection$ma_ub);
+		range_start <- relevant_collection$ma_lb;
+		range_end <- relevant_collection$ma_ub;
+		} else	{
+		ma_range <- abs(mean(finest_chronostrat$ma_lb[aa],finest_chronostrat$ma_ub[aa])-mean(finest_chronostrat$ma_lb[zz],finest_chronostrat$ma_ub[zz]));
+		range_start <- mean(finest_chronostrat$ma_lb[aa],finest_chronostrat$ma_ub[aa]);
+		range_end <- mean(finest_chronostrat$ma_lb[zz],finest_chronostrat$ma_ub[zz]);
+		}
+	if ((range_start-range_end) < temporal_precision)	temporal_precision <- (range_start-range_end)/2;
+#	if (coll_no==20391)	print(c(range_start,temporal_precision,range_end));
+	ma_range_finds <- array(1/(ma_range/temporal_precision),dim=c(ma_range/temporal_precision));
+	ma_range_subbin_finds <- temporal_precision/ma_range;
+	ma_range_find_ages <- round(seq(range_start-temporal_precision,range_end,by=-temporal_precision),round_level);
+	for (bn in aa:zz)	{
+		prob_bin <- ma_range_subbin_finds*sum(ma_range_find_ages[ma_range_find_ages<round(finest_chronostrat$ma_lb[bn],round_level)] %in% ma_range_find_ages[ma_range_find_ages>=round(finest_chronostrat$ma_ub[bn],round_level)]);
+	#		rock_finds[rn,bn] <- max(rock_finds[rn,bn],prob_bin);
+#		prob_find_this_case[bn] <- round(prob_bin,round_level);
+		prob_find_each_bin[bn] <- round(prob_bin,round_level);
+		}
+	}
+#prob_find_this_set <- rbind(prob_find_this_set,prob_find_this_case);
+#	prob_find_this_set;
+names(prob_find_each_bin) <- finest_chronostrat$interval;
+return(prob_find_each_bin);
+}
+
+create_rank_vector <- function(N)	{
+rank_vector <- vector(length=N)
+for (i in 1:N)	rank_vector[i] <- i
+return(rank_vector)
+}
+
+create_quantile_vector <- function(N)	{
+return(seq(1/(N+1),N/(N+1),by=1/(N+1)))
+}
+
+create_ranks_from_histogram <- function(observed)	{
+rnk <- length(subset(observed,observed>0))
+categoricals <- subset(observed,observed>0)[rnk:1]
+categ_ranks2 <- categ_ranks <- vector(length=length(categoricals))
+for (g in 1:categoricals[1])	categ_ranks2[1] <- categ_ranks2[1]+g
+for (f in 2:length(categoricals))	{
+	categ_ranks[f] <- categ_ranks[f-1]+categoricals[f-1]
+	for (g in (categ_ranks[f]+1):(categ_ranks[f]+categoricals[f]))	categ_ranks2[f] <- categ_ranks2[f]+g
+	}
+for (f in 1:length(categoricals))	categ_ranks2[f] <- categ_ranks2[f]/categoricals[f]
+return(categ_ranks2)
+}
+
+convert_abundance_matrix_to_occurrences_per_taxon <- function(datafile)	{
+data <- read.table(file=datafile, header=FALSE, stringsAsFactors=FALSE)
+taxa <- dim(data)[1]
+coll <- dim(data)[2]
+occupancy <- vector(length=taxa)
+maxfinds <- vector(length=taxa)
+for (t in 1:taxa)	{
+	for (c in 1:coll)	if (data[t,c]>0)	occupancy[t] <- occupancy[t]+1
+	maxfinds[t] <- max(data[t,])
+	}
+ncolls <- 0
+for (c in 1:coll)	{
+	if(max(data[,c])>0)	ncolls <- ncolls+1
+	}
+occupancy <- subset(occupancy,occupancy>0)
+maxfinds <- subset(maxfinds,maxfinds>0)
+output <- list(occupancy,maxfinds,ncolls)
+return(output)
+}
+
+#### INFORMATION THEORY 101 ####
+# first-order AIC
+#AIC <- function(lnL,k)	{
+# L: log-likelihood; # k: parameters; # n: data points
+#return((-2*lnL)+(2*k))
+#}
+
 # second-order (modified) AIC
-modified_AIC <- function(lnL,k,n)	{
+#modified_AIC <- function(lnL,k,n)	{
 # L: log-likelihood; # k: parameters; # n: data points
 #if (n==k)	n <- n+2
-if (is.na(n / (n - k - 1)) || (n / (n - k - 1)<0) || (n / (n - k - 1))==Inf)	{
-	aic_c <- AIC(lnL,k);
-	}	else	aic_c <- (-2*lnL) + (2*k)*(n / (n - k - 1));
-return(aic_c);
-}
+#if (is.na(n / (n - k - 1)) || (n / (n - k - 1)<0) || (n / (n - k - 1))==Inf)	{
+#	aic_c <- AIC(lnL,k);
+#	}	else	aic_c <- (-2*lnL) + (2*k)*(n / (n - k - 1));
+#return(aic_c);
+#}
 
 #### ESTIMATE ME SOME RICHNESS ####
 # convert abundances to "Fisher plot" giving # taxa with 1…N Finds
@@ -74,6 +367,31 @@ for (i in 1:length(observed))	ss <- ss+(i*observed[i])
 S <- round(ntaxa + (observed[1]*(((5*ss)-15)/ss)) - observed[2]*((10*(ss*ss)-(70*ss)+125)/(ss*(ss-1))) + observed[3]*(((10*(ss^3))-(120*(ss^2))+(485*ss)-660))/(ss*(ss-1)*(ss-2)) - observed[4]*((ss-4)^4)/(ss*(ss-1)*(ss-2)*(ss-3)) + observed[5]*((ss-5)^5)/(ss*(ss-1)*(ss-2)*(ss-3)*(ss-4)))
 return(S)
 }
+
+# Foote's Occupancy probablities ####
+#Product of density of p and probability of k given n and p.
+# Written by M. Foote 2015
+fpk <- function(p,k,n,mulog,siglog) {
+#p is occupancy probability.
+#n is number of sites.
+#k is number of occupied sites.
+#Illustrate with log-normal distribution of p, truncated at pmax as a free parameter.
+#Alternatively, pmax can be removed from all functions and the numerical integration taken to unity.
+#mulog is the parametric mean of the logarithms.
+#siglog is the parametric standard deviation of the logarithms.
+#Lower limit of integration; this can be varied for different levels of numerical precision.
+return(dlnorm(p,mulog,siglog)*dbinom(k,n,p))
+}
+
+#Foote's Equation A6.
+#Probability of exactly k out of n occupied sites.
+Pk <- function(k,n,mulog,siglog,pmax) {
+num <- integrate(fpk,ZERO,pmax,k,n,mulog,siglog)$value
+den <- integrate(dlnorm,ZERO,pmax,mulog,siglog)$value
+#den <- integrate(dlnorm,lower=ZERO,upper=pmax,mulog=mulog,siglog=siglog)$value
+return(num/den)
+}
+
 
 #### ELEMENTARY LIKELIHOOD MY DEAR WATSON ####
 # get expected occurrences given hypothesized occupancy distribution and numbers of collections
@@ -252,7 +570,7 @@ while (incr>0)	{
 				incr <- 0
 				}
 			}
-		# end case where we have a better richness in middle somewhere.  
+		# end case where we have a better richness in middle somewhere.
 		}	else	{
 		incr <- 0
 		}
@@ -272,16 +590,6 @@ return(round(1+((log(x)-log(1-d))/log(d))))
 }
 
 # exponential distribution with decay rate 1/ev; note that this is truncated at some minimum number
-# generate geometric (= exponential) distribution
-exponential_distribution <- function(decay)	{
-#print(decay);
-d <- min(decay,1/decay)
-S <- accersi_richness_with_prop_greater_than_x_given_exponential(decay,MINEXPN)
-ranks <- (1:S)
-prop <- (1-d)*(d^(ranks-1))
-return(prop)
-}
-
 # exponential distribution with decay rate that is rescaled to some "average" rate; note that this is truncated at some minimum number
 scaled_exponential_distribution <- function(sc,decay)	{
 return(sc*exponential_distribution(decay))
@@ -377,11 +685,11 @@ return(bH)
 
 ### Lognormal ####
 # generate lognormal distribuiton for S entities with log-variance = ev
-lognormal_distribution <- function(mag, S)	{
-fi <- seq(1/(S+1),S/(S+1),by=1/(S+1))
-prop <- mag^(qnorm(fi,0,1))/sum(mag^(qnorm(fi,0,1)))
-return(prop)
-}
+#lognormal_distribution <- function(mag, S)	{
+#fi <- seq(1/(S+1),S/(S+1),by=1/(S+1))
+#prop <- mag^(qnorm(fi,0,1))/sum(mag^(qnorm(fi,0,1)))
+#return(prop)
+#}
 
 # generate lognormal distribuiton for S entities with log-variance = mag and rescaled by r
 scaled_lognormal_distribution <- function(sc, mag, S)	{
@@ -401,7 +709,7 @@ smax <- max(Chao2_Fisher(observed),jack2_Fisher(observed))
 ### get minimum and maximum parameters
 maxmidfnds <- finds[round(oS/2)]
 minmidfnds <- finds[oS]/finds[round(oS/2)]
-	
+
 benchers <- round(oS/10)
 # for max, get the difference between minimum & benchers using oS;
 # for min, get the difference between the max & benchers using hS
@@ -419,8 +727,8 @@ mxev <- 1+2*(mxev-1)
 return(c(mnev,mxev))
 }
 
-# get rough estimate of lognormal given variance in log occupancy 
-# get rough estimate of lognormal given variance in log occupancy 
+# get rough estimate of lognormal given variance in log occupancy
+# get rough estimate of lognormal given variance in log occupancy
 accersi_initial_occupancy_lognormal <- function(finds,observed,oS,minS,ncoll)	{
 # editted 2019-08-15
 p0 <- vector(length=3)	# pO[1]=; p0[3]=richness
@@ -542,7 +850,7 @@ if (debug==1)	print(hS)
 cl <- list(fnscale=-1)
 w <- optim(c(br=p0[1],mag=p0[2]),fn=loglikelihood_lognormal_occupancy_rates,method="L-BFGS-B",oS=oS,hS=hS,observed=observed,ncoll=ncoll,lower=c(min(sc),min(mm)),upper=c(max(sc),max(mm)),control=cl)
 bH <- c(w$par,hS,w$value)
-names(bH) <- c("scale","mag_var","richness","loglikelihood")
+names(bH) <- c("scale","mag_var","S_LgN","lnl_LgN")
 return(bH)
 }
 
@@ -552,6 +860,9 @@ observed <- fisher_plot(finds);
 oS <- length(finds[finds>0])					# observed + inferred taxa
 maxS <- max(oS,(2*Chao2_Fisher(observed)));		# observed + inferred taxa
 minS <- length(finds)							# observed + inferred taxa
+if (maxS < minS)	maxS <- jack5_Fisher(observed)		# observed + inferred taxa
+if (maxS < minS || is.na(maxS))
+	maxS <- minS*10;
 #observed <- fisher_plot(finds)
 p0 <- accersi_initial_occupancy_lognormal(finds,observed,oS,minS,ncoll)	# pO[1]=r; p0[1]=magnitude; p0[3]=richness
 b0 <- accersi_min_max_lognormal_occupancy_params (finds,observed,oS,ncoll)
@@ -585,10 +896,8 @@ while (incr>0)	{
 	if (sum(hS %in% last_hS) == length(hS))	break;
 	if (pz>length(hS))	pz <- length(hS);
 	results <- sapply(hS[pa:pz],optimize_lognormal_occupancy_given_hS,oS=oS,observed=observed,ncoll=ncoll,p0=p0,sc=sc,mm=mm,debug=0)
-	if (pa==2)
-		results <-cbind(old_result_1,results)
-	if (pz<length(hS))
-		results <-cbind(results,old_result_2)
+	if (pa==2)	results <-cbind(old_result_1,results)
+	if (pz<length(hS))	results <-cbind(results,old_result_2)
 	mlnl <- max(results[4,])
 	mlSc <- match(mlnl,results[4,])
 	mlS <- hS[mlSc]
@@ -676,7 +985,7 @@ while (incr>0)	{
 			pa <- 2
 			pz <- spn-1
 			}
-		# end case where we have a better richness in middle somewhere.  
+		# end case where we have a better richness in middle somewhere.
 		last_hS <- hS
 		}	else	{
 		incr <- 0
@@ -686,24 +995,11 @@ while (incr>0)	{
 	}
 lognormal_AICc <- round(modified_AIC(mlnl,3,sum(finds)),2)
 bH <- c(bH[1],bH[2],bH[3],round(bH[4],2),lognormal_AICc)
-names(bH)[5] <- "AICc"
+names(bH)[5] <- "AICc_LgN"
 return(bH)
 }
 
 ### Beta ####
-# get beta distribution
-beta_distribution <- function(shape1, shape2, S)	{
-# NOTE:I get some wonky assed results using dbeta & qbeta
-ranks <- (1:S)/(S+1)
-numer <- (ranks^(shape1-1))*((1-ranks)^(shape2-1))
-#numer[numer==0] <- ZERO
-# use log gammas, as gamma does not like numbers much past 100
-Bab <- exp((lgamma(shape1)+lgamma(shape2))-lgamma(shape1+shape2))
-cdf <- numer/Bab
-pdf <- cdf/sum(cdf)
-return(pdf)
-}
-
 accersi_initial_occupancy_beta <- function(obs_mean, obs_var)	{
 shape1 <- 0.1
 shape2 <- (shape1/obs_mean)-shape1
@@ -727,7 +1023,7 @@ return(c(shape1,shape2))
 
 # calculate loglikelihood of beta for occupancy
 loglikelihood_beta_occupancy_rates <- function(p0, hS, observed, oS, ncoll)	{
-# p0[1]: shape1	# p0[2]: beta	
+# p0[1]: shape1	# p0[2]: beta
 shape1 <- p0[1]
 shape2 <- p0[2]
 #print(c(shape1,shape2,hS,oS))
@@ -870,7 +1166,7 @@ while (incr>0)	{
 				incr <- 0
 				}
 			}
-		# end case where we have a better richness in middle somewhere.  
+		# end case where we have a better richness in middle somewhere.
 		}	else	{
 		incr <- 0
 		}
@@ -1015,7 +1311,7 @@ colnames(output_summary) <- names(collections_per_bin[collections_per_bin>=min_c
 if (study_name=="")	{
 	output_file <- "Occupancy_Distribution_Output.xls"
 	}	else	{
-	output_file <- paste(study_name,"_Occupancy_Distribution_Output.xls",sep="")	
+	output_file <- paste(study_name,"_Occupancy_Distribution_Output.xls",sep="")
 	}
 write.table(t(output_summary),output_file,sep="\t",col.names=TRUE,row.names=FALSE)
 return(output_summary)
@@ -1051,13 +1347,37 @@ return(mean(xx))
 #return(mean(lgnd))
 }
 
-### Zipf ####
-zipf_distribution <- function(ev, S)	{
-ranks <- seq(1,S,by=1)
-zpf <- ranks^-ev
-prop <- zpf/sum(zpf)
-return(prop)
+# Gamma ####
+optimize_gamma_occupancy_one_parameter <- function(observed,ncoll)	{
+p0 <- vector(length=3)
+p0[3] <- jack2(observed)	# initial richness estimator
+ntaxa <- sum(observed)
+mid <- ntaxa-(observed[1])
+max <- 1
+for (i in 1:ncoll)	if (observed[i]>0)	max <- i
+p0[2] <- 1.0
+p0[1] <- 1.0
+
+smin <- round(0.9*p0[3])
+if (smin<ntaxa)	smin <- ntaxa+1
+
+p0[1] <- 1
+
+names(p0) <- c("scale", "shape", "S")
+
+cl <- list(fnscale=-1)
+w <- optim(p0,fn=bestgam1presrates,method="L-BFGS-B",lower=c(0.05,0.05,smin),upper=c(NA,NA,NA),control=cl, observed=observed, ncoll=ncoll)
+
+return(w)
 }
+
+### Zipf ####
+#zipf_distribution <- function(ev, S)	{
+#ranks <- seq(1,S,by=1)
+#zpf <- ranks^-ev
+#prop <- zpf/sum(zpf)
+#return(prop)
+#}
 
 scaled_zipf_distribution <- function(r,ev, S)	{
 #	rescale zipf to base rate r
@@ -1268,6 +1588,7 @@ return(sampling_dist_quantiles);
 }
 
 accersi_lognormal_sampling_quantiles <- function(sampling_distribution,ttl_quantiles=7)	{
+#print(paste(sampling_distribution,collapse=" "));
 rescale <- sampling_distribution$scale;
 stdev_mag <- sampling_distribution$mag_var;
 S <- sampling_distribution$richness;

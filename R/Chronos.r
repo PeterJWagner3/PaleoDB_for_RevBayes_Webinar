@@ -32,6 +32,8 @@ chronostrat <- chronostrat[order(chronostrat$ma_lb,chronostrat$ma_lb,decreasing 
 chronostrat <- chronostrat[order(-chronostrat$ma_lb,chronostrat$ma_lb),];
 
 chronostrat <- subset(chronostrat,chronostrat$ma_lb!=chronostrat$ma_ub);
+if (!is.null(chronostrat$interval_sr))
+	chronostrat <- chronostrat[chronostrat$interval_sr=="",];
 bin_onsets <- sort(unique(chronostrat$ma_lb),decreasing=T);
 bin_ends <- sort(unique(chronostrat$ma_ub),decreasing=T);
 
@@ -249,6 +251,105 @@ if (onset)	{
 	}
 }
 
+#slice <- "Cm41"
+accersi_initial_stages_from_stage_slices <- function(slice)  {
+return(paste(strsplit(slice,"")[[1]][1:(length(strsplit(slice,"")[[1]])-1)],collapse=""));
+}
+
+# lump overly short stage slices together
+#time_scale <- stage_slices;too_short=2;max_length=3;
+adjacent_stage_slice_lumping <- function(time_scale,too_short=2,max_length=3)  {
+# keep working on this!
+time_scale <- time_scale[order(-abs(time_scale$ma_lb)),]
+time_scale$initial_stage <- sapply(time_scale$interval,accersi_initial_stages_from_stage_slices);
+time_scale$durations <- abs(time_scale$ma_lb-time_scale$ma_ub);
+hobbits <- time_scale$interval[time_scale$durations<too_short];
+hobbits <- hobbits[order(time_scale$durations[time_scale$durations<too_short])];
+
+#example1 <- example2 <- example3 <- example4 <- c();
+h <- 1;
+while (h < length(hobbits))  {
+	initial_stage <- time_scale$initial_stage[match(hobbits[h],time_scale$interval)];
+	this_stage_slices <- time_scale[time_scale$initial_stage %in% initial_stage,];
+	t_s_s <- nrow(this_stage_slices);
+	t_s_n <- match(hobbits[h],this_stage_slices$interval);
+	cum_durations_up <- cumsum(this_stage_slices$durations)
+	cum_durations_dn <- cumsum(this_stage_slices$durations[t_s_s:1])[t_s_s:1];
+	cum_durations_up_h <- cumsum(this_stage_slices$durations[t_s_n:t_s_s]);
+	cum_durations_dn_h <- cumsum(this_stage_slices$durations[t_s_n:1]);
+	slices_up <- this_stage_slices$interval[t_s_n:t_s_s];
+	slices_dn <- this_stage_slices$interval[t_s_n:1];
+	if (max(cum_durations_up)<=max_length)  {
+#		time_scale$interval_sr[time_scale$initial_stage %in% initial_stage] <- initial_stage;
+		time_scale$interval[time_scale$initial_stage %in% initial_stage] <- initial_stage;
+		time_scale$ma_lb[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_lb[1];
+		if ("ma_lb_2012" %in% colnames(time_scale))
+  		time_scale$ma_lb_2012[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_lb_2012[1];
+		time_scale$ma_ub[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_ub[t_s_s];
+		if ("ma_ub_2012" %in% colnames(time_scale))
+  		time_scale$ma_ub_2012[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_ub_2012[t_s_s];
+		time_scale$terminal_biozone[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$terminal_biozone[t_s_s];
+		time_scale$terminal_biozone_zone_no[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$terminal_biozone_zone_no[t_s_s];
+		time_scale$terminal_biozone_scale[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$terminal_biozone_scale[t_s_s];
+		time_scale$terminal_zone_modifier[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$terminal_zone_modifier[t_s_s];
+    } else  {
+		if (sum(cum_durations_up_h<max_length)<sum(cum_durations_dn_h<max_length) || (sum(cum_durations_up_h<max_length)>1 & max(cum_durations_dn_h[cum_durations_dn_h<max_length])<max(cum_durations_up_h[cum_durations_up_h<max_length])))	{
+			lumped_slices <- slices_dn[cum_durations_dn_h<max_length];
+			lumped_slices <- lumped_slices[length(lumped_slices):1];
+			new_nos <- match(lumped_slices,this_stage_slices$interval);
+			new_slice <- paste(initial_stage,new_nos[1],"-",max(new_nos),sep="");
+#			time_scale$interval_sr[time_scale$interval %in% lumped_slices] <- new_slice;
+			time_scale$ma_lb[time_scale$interval %in% lumped_slices] <- this_stage_slices$ma_lb[min(new_nos)];
+  		if ("ma_lb_2012" %in% colnames(time_scale))
+  		  time_scale$ma_lb_2012[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_lb_2012[min(new_nos)];
+			time_scale$ma_ub[time_scale$interval %in% lumped_slices] <- this_stage_slices$ma_ub[max(new_nos)];
+  		if ("ma_ub_2012" %in% colnames(time_scale))
+  		  time_scale$ma_ub_2012[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_ub_2012[max(new_nos)];
+			time_scale$basal_biozone[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone[min(new_nos)];
+			time_scale$basal_biozone_zone_no[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone_zone_no[min(new_nos)];
+			time_scale$basal_biozone_scale[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone_scale[min(new_nos)];
+			time_scale$basal_zone_modifier[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone_scale[min(new_nos)];
+			time_scale$terminal_biozone[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_biozone[max(new_nos)];
+			time_scale$terminal_biozone_zone_no[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_biozone_zone_no[max(new_nos)];
+			time_scale$terminal_biozone_scale[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_biozone_scale[max(new_nos)];
+			time_scale$terminal_zone_modifier[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_zone_modifier[max(new_nos)];
+			time_scale$interval[time_scale$interval %in% lumped_slices] <- new_slice;
+			} else if (sum(cum_durations_up_h<max_length)>sum(cum_durations_dn_h<max_length) || (sum(cum_durations_up_h<max_length)>1 & max(cum_durations_dn_h[cum_durations_dn_h<max_length])>=max(cum_durations_up_h[cum_durations_up_h<max_length])))	{
+			lumped_slices <- slices_up[cum_durations_up_h<max_length];
+			new_nos <- sort(match(lumped_slices,this_stage_slices$interval));
+			new_slice <- paste(initial_stage,new_nos[1],"-",max(new_nos),sep="");
+#			time_scale$interval_sr[time_scale$interval %in% lumped_slices] <- new_slice;
+			time_scale$ma_lb[time_scale$interval %in% lumped_slices] <- this_stage_slices$ma_lb[min(new_nos)];
+  		if ("ma_lb_2012" %in% colnames(time_scale))
+  		  time_scale$ma_lb_2012[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_lb_2012[min(new_nos)];
+			time_scale$ma_ub[time_scale$interval %in% lumped_slices] <- this_stage_slices$ma_ub[max(new_nos)];
+  		if ("ma_ub_2012" %in% colnames(time_scale))
+  		  time_scale$ma_ub_2012[time_scale$initial_stage %in% initial_stage] <- this_stage_slices$ma_ub_2012[max(new_nos)];
+			time_scale$basal_biozone[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone[min(new_nos)];
+			time_scale$basal_biozone_zone_no[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone_zone_no[min(new_nos)];
+			time_scale$basal_biozone_scale[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone_scale[min(new_nos)];
+			time_scale$basal_zone_modifier[time_scale$interval %in% lumped_slices] <- this_stage_slices$basal_biozone_scale[min(new_nos)];
+			time_scale$terminal_biozone[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_biozone[max(new_nos)];
+			time_scale$terminal_biozone_zone_no[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_biozone_zone_no[max(new_nos)];
+			time_scale$terminal_biozone_scale[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_biozone_scale[max(new_nos)];
+			time_scale$terminal_zone_modifier[time_scale$interval %in% lumped_slices] <- this_stage_slices$terminal_zone_modifier[max(new_nos)];
+			time_scale$interval[time_scale$interval %in% lumped_slices] <- new_slice;
+			}
+		}
+	if (nrow(time_scale)==length(unique(time_scale$interval)))	{
+		h <- h+1;
+		} else	{
+		time_scale <- time_scale[match(unique(time_scale$interval),time_scale$interval),];
+		time_scale$durations <- abs(time_scale$ma_lb-time_scale$ma_ub);
+		hobbits <- hobbits[hobbits %in% time_scale$interval];
+#		hobbits <- hobbits[c((1:h),((h+1):length(hobbits))[hobbits[(h+1):length(hobbits)] %in% time_scale$interval])];
+		}
+#	print(c(h,hobbits));
+	}
+time_scale$interval_alt <- time_scale$interval;
+return(time_scale);
+}
+
 #update_paleodb_collection_ages
 # get temporal overlap between two spans (ranges, intervals, etc.)
 do_two_ranges_overlap <- function(lb_a,ub_a,lb_b,ub_b)	{
@@ -428,8 +529,15 @@ collections$direct_ma <- expello_na_from_vector(collections$direct_ma,0);
 collections$direct_ma_error <- expello_na_from_vector(collections$direct_ma_error,0);
 beakerheads <- (1:ncolls)[collections$direct_ma>0];
 if (length(beakerheads)>0)	{
-	collections$interval_lb <- as.character(collections$interval_lb);	# kluge
-	collections$interval_ub <- as.character(collections$interval_ub);	# kluge
+	if (is.null(collections$interval_lb))	{
+		age <- collections$max_ma;
+		collections$interval_lb <- pbapply::pbsapply(age,rebin_collection_with_time_scale,"onset",fine_time_scale=finest_chronostrat);
+		age <- collections$min_ma;
+		collections$interval_ub <- pbapply::pbsapply(age,rebin_collection_with_time_scale,"end",fine_time_scale=finest_chronostrat);
+		} else	{
+		collections$interval_lb <- as.character(collections$interval_lb);	# kluge
+		collections$interval_ub <- as.character(collections$interval_ub);	# kluge
+		}
 	if (!is.null(collections$ma_lb))	{
 		collections$direct_ma_error[beakerheads][collections$direct_ma_error[beakerheads]==0] <- temporal_precision;
 		collections$ma_lb[beakerheads] <- collections$direct_ma[beakerheads]+collections$direct_ma_error[beakerheads];
@@ -606,4 +714,55 @@ if (length(dated_collections)>0)	{
 		}
 	}
 return(paleodb_collections);
+}
+
+accersi_dates_from_fossilworks <- function(fossilworks_data)	{
+#keepers <- c("collection_no","direct_ma","direct_ma_error","direct_ma_method","max_ma","max_ma_error","max_ma_method","min_ma","min_ma_error","min_ma_method","ma_max","ma_min");
+#numerics <- c("collection_no","direct_ma","direct_ma_error","max_ma","max_ma_error","min_ma","min_ma_error","ma_max","ma_min");
+keepers <- c("collection_no","direct_ma","direct_ma_error","direct_ma_method","max_ma","max_ma_error","max_ma_method","min_ma","min_ma_error","min_ma_method");
+numerics <- c("collection_no","direct_ma","direct_ma_error","max_ma","max_ma_error","min_ma","min_ma_error");
+fossilworks_dates <- fossilworks_data[,keepers];
+fossilworks_dates <- fossilworks_dates[!(fossilworks_dates$direct_ma_method=="" & fossilworks_dates$max_ma_method==""),];
+ndates <- nrow(fossilworks_dates);
+fossilworks_dates$ma_ub <- fossilworks_dates$ma_lb <- fossilworks_dates$min_ma_d <- fossilworks_dates$max_ma_d <- rep(0,nrow(fossilworks_dates));
+fossilworks_dates$max_ma[is.na(fossilworks_dates$max_ma)] <- fossilworks_dates$max_ma_error[is.na(fossilworks_dates$max_ma_error)] <- fossilworks_dates$min_ma[is.na(fossilworks_dates$min_ma)] <- fossilworks_dates$min_ma_error[is.na(fossilworks_dates$min_ma_error)] <- fossilworks_dates$direct_ma[is.na(fossilworks_dates$direct_ma)] <- fossilworks_dates$direct_ma_error[is.na(fossilworks_dates$direct_ma_error)]  <- -1;
+fossilworks_dates$max_ma_error[fossilworks_dates$max_ma>0 & fossilworks_dates$max_ma_error==-1] <- fossilworks_dates$max_ma[fossilworks_dates$max_ma>0 & fossilworks_dates$max_ma_error==-1]/100;
+fossilworks_dates$min_ma_error[fossilworks_dates$min_ma>0 & fossilworks_dates$min_ma_error==-1] <- fossilworks_dates$min_ma[fossilworks_dates$min_ma>0 & fossilworks_dates$min_ma_error==-1]/100;
+fossilworks_dates$direct_ma_error[fossilworks_dates$direct_ma>=0 & fossilworks_dates$direct_ma_error==-1] <- fossilworks_dates$direct_ma[fossilworks_dates$direct_ma>=0 & fossilworks_dates$direct_ma_error==-1]/100;
+fossilworks_dates$max_ma[fossilworks_dates$min_ma==-1 & fossilworks_dates$max_ma>=0] <- fossilworks_dates$max_ma[fossilworks_dates$min_ma==-1 & fossilworks_dates$max_ma>=0]+(fossilworks_dates$max_ma_error[fossilworks_dates$min_ma==-1 & fossilworks_dates$max_ma>=0]/2);
+fossilworks_dates$min_ma[fossilworks_dates$min_ma==-1 & fossilworks_dates$max_ma>=0] <- fossilworks_dates$max_ma[fossilworks_dates$min_ma==-1 & fossilworks_dates$max_ma>=0]-(fossilworks_dates$max_ma_error[fossilworks_dates$min_ma==-1 & fossilworks_dates$max_ma>=0]/2);
+fossilworks_dates$max_ma_d <- fossilworks_dates$direct_ma+fossilworks_dates$direct_ma_error;
+fossilworks_dates$min_ma_d <- fossilworks_dates$direct_ma-fossilworks_dates$direct_ma_error;
+#if (is.list(fossilworks_dates$max_ma_d)) fossilworks_dates$max_ma_d <- unlist(fossilworks_dates$max_ma_d);
+#if (is.list(fossilworks_dates$min_ma_d)) fossilworks_dates$min_ma_d <- unlist(fossilworks_dates$min_ma_d);
+too_prec <- (1:ndates)[fossilworks_dates$max_ma==fossilworks_dates$min_ma];
+fossilworks_dates$max_ma[too_prec] <- fossilworks_dates$max_ma[too_prec]+(fossilworks_dates$max_ma_error[too_prec]/2);
+fossilworks_dates$min_ma[too_prec] <- fossilworks_dates$min_ma[too_prec]-(fossilworks_dates$min_ma_error[too_prec]/2);
+#sum(is.na(fossilworks_dates$max_ma))
+
+
+inferred <- (1:ndates)[fossilworks_dates$max_ma_method!=""];
+direct <- (1:ndates)[fossilworks_dates$direct_ma_method!=""];
+both <- direct[direct %in% inferred];
+direct_only <- direct[!(direct %in% inferred)];
+inferred_only <- inferred[!inferred %in% direct];
+
+fossilworks_dates$ma_lb[inferred_only] <- fossilworks_dates$max_ma[inferred_only];
+fossilworks_dates$ma_ub[inferred_only] <- fossilworks_dates$min_ma[inferred_only];
+fossilworks_dates$ma_lb[direct_only] <- fossilworks_dates$max_ma_d[direct_only];
+fossilworks_dates$ma_ub[direct_only] <- fossilworks_dates$min_ma_d[direct_only];
+bb <- 0;
+while (bb<length(both))	{
+	bb <- bb+1;
+	bbb <- both[bb];
+	overlap <- accersi_temporal_overlap(fossilworks_dates$max_ma_d[bbb],fossilworks_dates$min_ma_d[bbb],fossilworks_dates$max_ma[bbb],fossilworks_dates$min_ma[bbb]);
+	if (overlap[1]!=0)	{
+		fossilworks_dates$ma_lb[both[bb]] <- as.numeric(overlap[1]);
+		fossilworks_dates$ma_ub[both[bb]] <- as.numeric(overlap[2]);
+		} else	{
+		fossilworks_dates$ma_lb[both[bb]] <- fossilworks_dates$max_ma_d[both[bb]];
+		fossilworks_dates$ma_ub[both[bb]] <- fossilworks_dates$min_ma_d[both[bb]];
+		}
+	}
+return(fossilworks_dates)
 }

@@ -1,3 +1,4 @@
+# brute force kluges to make R what I effin' well want it to do..... 
 # accersi: fetch/summon
 # divido: divide!
 # expello: banish
@@ -5,19 +6,18 @@
 # percursant: scour
 # revelare: reveal
 
-# brute force kluges to make R what I effin' well want it to do..... 
 #### send NAs to hell where they belong..... ####
 clear_na_from_matrix <- function(data, replacement)  {
 #size <- dim(data)
 #for (i in 1:size[1])	{
 #	for (j in 1:size[2]) if (is.na(data[i,j]))	data[i,j] <- replacement
 #	}
-for (i in 1:ncol(data))	{
-	if(sum(is.na(data[,i]))>0)	{
-		duds <- (1:nrow(data))[is.na(data[,i])]
-		data[duds,i] <- replacement
-		}
-	}
+for (i in 1:ncol(data))	data[is.na(data[,i]),i] <- replacement;
+#	if(sum(is.na(data[,i]))>0)	{
+#		duds <- (1:nrow(data))[is.na(data[,i])];
+#		data[duds,i] <- replacement;
+#		}
+#	}
 return(data)
 }
 
@@ -383,36 +383,6 @@ for (v in 2:length(vv))	gaps <- c(gaps,(vv[v]-vv[v-1])-1)
 return(gaps);
 }
 
-rowMins <- function(m,exclude="")	{
-rmn <- c();
-for (i in 1:nrow(m))
-	rmn <- c(rmn,min(m[i,!m[i,] %in% exclude]));
-return(rmn);
-}
-
-rowMaxs <- function(m,exclude="")	{
-rmx <- c();
-for (i in 1:nrow(m))
-	rmx <- c(rmx,max(m[i,!m[i,] %in% exclude]));
-return(rmx);
-}
-
-colMins <- function(m)	{
-m <- clear_na_from_matrix(m,-MAXNO);
-cmn <- c();
-for (i in 1:ncol(m))
-	cmn <- c(cmn,min(m[!m[i,] %in% exclude,i]));
-return(cmn);
-}
-
-colMaxs <- function(m)	{
-m <- clear_na_from_matrix(m,-MAXNO);
-cmx <- c();
-for (i in 1:ncol(m))
-	cmx <- c(cmx,max(m[,i]));
-return(cmx);
-}
-
 # matching vectors to rows in a matrix
 #row1 <- 202; matrix2 <- cooccr_mat; matrix1 <- reduced_cooccr_mat;
 accersi_matching_row <- function(row2,matrix2,matrix1)	{
@@ -424,7 +394,7 @@ return(match_vector_to_matrix_row(test_vector,matrix1))
 match_vector_to_matrix_row <- function(test_vector,test_matrix)	{
 rn <- 1:nrow(test_matrix);
 xx <- sapply(rn,vector_matches_in_matrix,test_vector,test_matrix);
-match(ncol(test_matrix),xx)
+return(match(ncol(test_matrix),xx));
 }
 
 # vector2 <- test_vector; vector1 <- test_matrix[1,]

@@ -83,10 +83,46 @@ if (use_logs)	{
 return(rps);
 }
 
-colMedian <- function(data_matrix)	{
+colMedians <- function(data_matrix)	{
 col_medians <- c();
 for (i in 1:ncol(data_matrix))	col_medians <- c(col_medians,median(data_matrix[,i]));
 return(col_medians)
+}
+
+rowMedians <- function(data_matrix)	{
+row_medians <- c();
+for (i in 1:nrow(data_matrix))	row_medians <- c(row_medians,median(data_matrix[i,]));
+return(row_medians)
+}
+
+rowMins <- function(m,exclude="")	{
+rmn <- c();
+for (i in 1:nrow(m))
+	rmn <- c(rmn,min(m[i,!m[i,] %in% exclude]));
+return(rmn);
+}
+
+rowMaxs <- function(m,exclude="")	{
+rmx <- c();
+for (i in 1:nrow(m))
+	rmx <- c(rmx,max(m[i,!m[i,] %in% exclude]));
+return(rmx);
+}
+
+colMins <- function(m)	{
+m <- clear_na_from_matrix(m,-MAXNO);
+cmn <- c();
+for (i in 1:ncol(m))
+	cmn <- c(cmn,min(m[!m[i,] %in% exclude,i]));
+return(cmn);
+}
+
+colMaxs <- function(m)	{
+m <- clear_na_from_matrix(m,-MAXNO);
+cmx <- c();
+for (i in 1:ncol(m))
+	cmx <- c(cmx,max(m[,i]));
+return(cmx);
 }
 
 #### Model Fitting ####

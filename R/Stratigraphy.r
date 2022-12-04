@@ -6,8 +6,8 @@
 # revelare: reveal
 
 library(dplyr);
-library(lettercase);	#devtools::install_github('decisionpatterns/lettercase')
-library(paleobioDB);    #install.packages("paleobioDB", dependencies=TRUE);
+#library(lettercase);	#devtools::install_github('decisionpatterns/lettercase')
+#library(paleobioDB);    #install.packages("paleobioDB", dependencies=TRUE);
 library(prodlim);		#install.packages("prodlim", dependencies=TRUE);
 library(Rcpp);			#devtools::install_github("https://github.com/RcppCore/Rcpp/")
 library(rvest);
@@ -227,13 +227,13 @@ for (sp in 1:nspec)	{
 return(new_occurrence_order);
 }
 
-
 #### Routines to put probabilities on starts & stops of rock units ####
 find_relevant_sections <- function(rock_unit,rock_superposition)	{
 return(unique(rock_superposition$column[unique(which(rock_superposition==rock_unit,arr.ind = T)[,1])]));
 }
 
 # section <- this_section;
+# hmmm: this seems to not do anything!
 order_rocks_in_section <- function(section)	{
 rock_nos <- unique(c(section$rock_no_sr_up,section$rock_no_sr_lo));
 rock_formations <- unique(rbind(cbind(section$formation_no_up,section$rock_no_sr_up),
@@ -252,7 +252,9 @@ for (sr in 1:srocks)	{
 	if (sum(ordered_rocks==ordered_formations_all)>0)	{
 		member_nos <- ordered_rocks[ordered_rocks!=ordered_formations_all];
 		member_forms <- unique(rock_formations$formation_no[match(member_nos,rock_formations$rock_no)]);
-		for (mf in 1:length(member_forms))	{
+		mf <- 0;
+		while (mf < length(member_forms))	{
+			mf <- mf+1;
 			ttl_mems <- sum(member_forms[mf]==rock_formations$formation_no[match(ordered_rocks,rock_formations$rock_no)]);
 			wts <- seq(0,1-(1/ttl_mems),1/ttl_mems);
 			}
@@ -274,21 +276,26 @@ for (sr in 1:srocks)	{
 }
 
 # putting rocks in order within sections
+# 2021-12-12: altered routine to eliminate basement & top of sections
 accersi_rock_order_in_section <- function(rock_no,section,topdown=F)	{
 rock_order <- as.numeric(rock_no);
 # find rocks underneath unit rock_no
 start <- match(rock_no,section$rock_no_sr_up);
 section <- subset(section,section$rock_no_sr_up!=section$rock_no_sr_lo);
-while (!is.na(start))	{
+while (!is.na(start) & sum(rock_order<1)==0)	{
 	rock_order <- c(rock_order,as.numeric(section$rock_no_sr_lo[start]));
 	start <- match(section$rock_no_sr_lo[start],section$rock_no_sr_up);
 	}
 # find rocks underneath unit rock_no
+rock_order <- rock_order[rock_order>0];
+rock_order <- rock_order[!is.na(rock_order)];
 start <- match(rock_no,section$rock_no_sr_lo);
-while (!is.na(start))	{
+while (!is.na(start) & sum(rock_order<1)==0)	{
 	rock_order <- c(as.numeric(section$rock_no_sr_up[start]),rock_order);
 	start <- match(section$rock_no_sr_up[start],section$rock_no_sr_lo);
 	}
+rock_order <- rock_order[rock_order>0];
+rock_order <- rock_order[!is.na(rock_order)];
 if (!topdown)
 	rock_order <- rock_order[length(rock_order):1]
 return(rock_order);
@@ -398,6 +405,7 @@ rock_order <- data.frame(rock_no=as.numeric(rock_order_1),
 						 rock_unit=as.character(section$full_name_up[rock_info]),
 						 ma_lb=as.numeric(section$up_ma_lb[rock_info]),
 						 ma_ub=as.numeric(section$up_ma_ub[rock_info]),stringsAsFactors = F);
+rock_order <- rock_order[!is.na(rock_order$ma_lb),];
 nad <- (1:nrow(rock_order))[is.na(rock_order$rock_unit)];
 na_buster <- match(rock_order$rock_no[nad],section$rock_no_sr_lo);
 rock_order$rock_unit[nad] <- section$full_name_lo[na_buster];
@@ -426,22 +434,31 @@ this_rock_ub_init <- rock_order$ma_ub[this_rock_hi];
 seq_rocks <- nrow(rock_order);
 ro <- 1;
 #for (ro in 1:(nrow(rock_order)-1))	{
-while (ro < seq_rocks)	{
-	older_rocks <- (ro+1):seq_rocks;
-	underlapping <- older_rocks[rock_order$ma_ub_mx[older_rocks]<rock_order$ma_lb_mn[ro]];
+# upper bound cannot be younger than any upper bounds of younger rocks
+# lower bound cannot be older than any lower bounds of older rocks
+for (ro in 1:seq_rocks)	{
+	younger_rocks <- ro:seq_rocks;
+	older_rocks <- 1:ro;
+	rock_order$ma_lb[ro] <- min(rock_order$ma_lb[older_rocks]);
+	rock_order$ma_ub[ro] <- max(rock_order$ma_ub[younger_rocks]);
+	}
+#while (ro < seq_rocks)	{
+#	younger_rocks <- ro:seq_rocks;
+#	older_rocks <- 1:ro;
+#	underlapping <- older_rocks[rock_order$ma_ub_mx[younger_rocks]<rock_order$ma_lb_mn[ro]];
 	#	rock_order$ma_ub[underlapping[rock_order$ma_ub[underlapping]<rock_order$ma_ub[ro]]] <- rock_order$ma_ub[ro];
-	rock_order$ma_ub[ro] <- max(rock_order$ma_ub[1:ro]);
-	rock_order$ma_lb[ro] <- min(rock_order$ma_lb[ro],min(rock_order$ma_lb[older_rocks]));
-	ro <- ro+1;
-	}
+#	rock_order$ma_ub[ro] <- max(rock_order$ma_ub[older_rocks]);
+#	rock_order$ma_lb[ro] <- min(rock_order$ma_lb[ro],min(rock_order$ma_lb[younger_rocks]));
+#	ro <- ro+1;
+#	}
 
-ro <- this_rock_hi;
-while (ro < seq_rocks)	{
-	older_rocks <- (ro+1):seq_rocks;
-	constrained <- older_rocks[rock_order$ma_ub[older_rocks]<rock_order$ma_ub[ro]];
-	rock_order$ma_ub[constrained] <- rock_order$ma_ub[ro];
-	ro <- ro+1;
-	}
+#ro <- this_rock_hi;
+#while (ro < seq_rocks)	{
+#	older_rocks <- (ro+1):seq_rocks;
+#	constrained <- older_rocks[rock_order$ma_ub[older_rocks]<rock_order$ma_ub[ro]];
+#	rock_order$ma_ub[constrained] <- rock_order$ma_ub[ro];
+#	ro <- ro+1;
+#	}
 
 # younger rocks cannot start before the onset date of older rocks #
 ro <- this_rock_lo;
@@ -522,8 +539,8 @@ this_rock_ub_mx <- max(rock_order$ma_ub_mx[this_rock_lo:this_rock_hi]);
 this_rock_ub_mn <- min(rock_order$ma_ub_mn[this_rock_lo:this_rock_hi]);
 rock_order <- subset(rock_order,rock_order$ma_lb_mx>this_rock_ub_mn);
 rock_order <- subset(rock_order,rock_order$ma_ub_mn<this_rock_lb_mx);
-this_rock_hi <- match(rock_no_highest,rock_order$rock_no);
-this_rock_lo <- match(rock_no_lowest,rock_order$rock_no);
+this_rock_hi <- match(rock_no_highest,rock_order$rock_no);	# this_rock_hi & this_rock_lo will differ only if rock_no
+this_rock_lo <- match(rock_no_lowest,rock_order$rock_no);	# is a formation with multiple members; this gets the highest & lowest member
 
 seq_rocks <- nrow(rock_order);
 #poss_higher_rocks <- sum(rock_order$ma_ub[1:this_rock_hi]<rock_order$ma_ub[this_rock_hi]);
@@ -558,6 +575,8 @@ ppe <- abs(this_rock_lb_mx-time_slices_en)/ttl_span;
 
 p_start <- p_end <- c();
 p_st <- p_en <- rep(0,ttl_time_slices);
+names(p_st) <- names(p_en) <- time_slices;
+
 st_cells <- match(round(time_slices_st,3),round(time_slices,3));
 en_cells <- match(round(time_slices_en,3),round(time_slices,3));
 for (fc in 1:nrow(fuzzy_combos))	{
@@ -597,13 +616,18 @@ p_end <- rowSums(p_end)/nrow(fuzzy_combos);
 
 #cuml_p_started <- cumsum(p_start);
 #cuml_p_not_ended <- 1-cumsum(p_end);
-p_present <- cumsum(p_start[ttl_time_slices:1])*(1-cumsum(p_end[ttl_time_slices:1]));
-p_present <- p_present[ttl_time_slices:1]
+p_started <- cumsum(p_start[ttl_time_slices:1]);
+p_not_ended <- 1-cumsum(p_end[ttl_time_slices:1]);
+p_not_ended[ttl_time_slices:2] <- p_not_ended[(ttl_time_slices-1):1];
+p_present <- exp(log(p_started)+log(p_not_ended));
+
+#p_present <- cumsum(p_start[ttl_time_slices:1])*(1-cumsum(p_end[ttl_time_slices:1]));
+#p_present <- p_present[ttl_time_slices:1]
 # kluge! if extinction is limited to one unit, then problems happen
-if (length((1:ttl_time_slices)[p_present %in% 0])>0)	{
-	if (p_end[max((1:ttl_time_slices)[p_present %in% 0])]==1)
-		p_present[max((1:ttl_time_slices)[p_present %in% 0])] <- 0.5;
-	}
+#if (length((1:ttl_time_slices)[p_present %in% 0])>0)	{
+#	if (p_end[max((1:ttl_time_slices)[p_present %in% 0])]==1)
+#		p_present[max((1:ttl_time_slices)[p_present %in% 0])] <- 0.5;
+#	}
 
 age_probs <- data.frame(poss_age=as.numeric(time_slices),
 						prob_rock_present=as.numeric(p_present[ttl_time_slices:1]),
@@ -1402,9 +1426,11 @@ return(p_fa_this_rock)
 }
 
 #### beta distribution with alpha = prn+1 & beta = sbN+1;
-# prN <- 0; sbN <- 4;
+# prN <- 0; sbN <- 1;
 prob_distribution_event_at_x_given_n_prior_and_m_later_events <- function(prN,sbN,span=1,precision=0.01)	{
 # beta distribution with shape1 (alpha) = prN+1 and shape2 (beta) = sbN+1
+# prN: prior events
+# sbN: subsequent events
 # mode is prN/(prN+sbN); so, 2nd of 4 events expected around 0.33;
 pp <- seq(precision,span,by=precision)/span;
 prob_dist <- dbeta(pp,prN+1,sbN+1)/sum(dbeta(pp,prN+1,sbN+1));
@@ -2905,6 +2931,7 @@ return(cooccur_matrix_best);
 # find age assignments that minimize gaps and range extensions among species
 # revised 2020-02-19
 # revised 2020-06-15
+# paleodb_finds=interval_finds;paleodb_collections=interval_sites;hierarchical_chronostrat=hierarchical_chronostrat;zone_database=interval_zones
 optimo_paleodb_collection_and_occurrence_stratigraphy <- function(paleodb_finds,paleodb_collections,hierarchical_chronostrat,zone_database,update_search=T)	{
 # rescore collections if there is any lumping of reported stages into useful stages
 ncolls <- nrow(paleodb_collections);
@@ -2934,7 +2961,6 @@ taxa <- paleodb_finds$accepted_name;
 
 # number taxa
 paleodb_finds$taxon_no <- match(taxa,taxon_names);
-#paleodb_finds <- cbind(paleodb_finds,taxon_no);
 
 # add collection data to occurrence data
 coll_to_find_key <- match(paleodb_finds$collection_no,paleodb_collections$collection_no);
@@ -2950,6 +2976,9 @@ finest_chronostrat <- unique(finest_chronostrat);
 ### problem is before here: for some reason, there are NAs in the ages.
 taxon <- taxon_names;
 print(paste("Getting basic stratigraphic range data for",length(taxon),"species..."));
+ntaxa <- length(taxon);
+m_r_d <- data.frame();
+for (tn in 1:ntaxa)	m_r_d <- rbind(m_r_d,tally_fuzzy_stratigraphic_ranges_sapply(taxon=taxon_names[tn],all_finds=paleodb_finds,hierarchical_chronostrat=hierarchical_chronostrat));
 m_r_d <- data.frame(base::t(pbapply::pbsapply(taxon,tally_fuzzy_stratigraphic_ranges_sapply,all_finds=paleodb_finds,hierarchical_chronostrat)));
 minimum_range_data <- data.frame(ma_fa_mx=as.numeric(unlist(m_r_d$ma_fa_lb)),
 								 ma_fa_mn=as.numeric(unlist(m_r_d$ma_fa_ub)),
@@ -2959,6 +2988,14 @@ minimum_range_data <- data.frame(ma_fa_mx=as.numeric(unlist(m_r_d$ma_fa_lb)),
 								 interval_ub=as.character(unlist(m_r_d$interval_ub)),
 								 stringsAsFactors = F);
 rownames(minimum_range_data) <- taxon_names;
+#tally_fuzzy_stratigraphic_ranges_sapply(taxon=taxon[269],all_finds=paleodb_finds,hierarchical_chronostrat)
+#duds1 <- (1:ntaxa)[is.na(minimum_range_data$interval_lb)];
+#age <- minimum_range_data$ma_fa_mx[(1:ntaxa)[is.na(minimum_range_data$interval_lb)]];
+#minimum_range_data$interval_lb[(1:ntaxa)[is.na(minimum_range_data$interval_lb)]] <- sapply(age,rebin_collection_with_time_scale,onset_or_end="onset",fine_time_scale=finest_chronostrat);
+#duds2 <- (1:ntaxa)[is.na(minimum_range_data$interval_ub)];
+#age <- minimum_range_data$ma_la_mn[(1:ntaxa)[is.na(minimum_range_data$interval_ub)]];
+#minimum_range_data$interval_ub[(1:ntaxa)[is.na(minimum_range_data$interval_ub)]] <- sapply(age,rebin_collection_with_time_scale,onset_or_end="end",fine_time_scale=finest_chronostrat);
+#minimum_range_data$interval_ub[duds]
 
 zone_taxa <- taxon_names[taxon_names %in% zone_database$zone];
 z_n <- match(zone_taxa,rownames(minimum_range_data));
@@ -2998,47 +3035,6 @@ age <- minimum_range_data$ma_fa_mx[zone_rows];
 minimum_range_data$interval_lb[zone_rows] <- pbapply::pbsapply(age,rebin_collection_with_time_scale,"onset",finest_chronostrat);
 age <- minimum_range_data$ma_la_mn[zone_rows];
 minimum_range_data$interval_ub[zone_rows] <- pbapply::pbsapply(age,rebin_collection_with_time_scale,"end",finest_chronostrat);
-#cbind(minimum_range_data$ma_la_mn[zone_rows[make_younger]],these_zones_keep$ma_ub[make_younger])
-
-# now, adjust ranges as needed
-#zone_rows
-#minimum_range_data$interval_lb[match(zone_taxa,rownames(minimum_range_data))]
-#minimum_range_data$interval_ub[match(zone_taxa,rownames(minimum_range_data))]
-#zt <- 0;
-#while (zt < length(zone_taxa))	{
-#for (zt in 1:length(zone_taxa))	{
-#	zt <- zt+1;
-#	zn <- match(zone_taxa[zt],taxon_names);
-#	if (minimum_range_data$ma_fa_mn[zn]==0)
-#		print(zt)
-#	this_zone <- subset(zone_database,zone_database$zone==zone_taxa[zt]);
-
-#	if (minimum_range_data$ma_fa_mn[zn]==0)	{
-#		minimum_range_data$ma_fa_mx[zn] <- minimum_range_data$ma_fa_mn[zn] <- max(this_zone$ma_lb);
-#		minimum_range_data$ma_la_mx[zn] <- minimum_range_data$ma_la_mn[zn] <- min(this_zone$ma_ub);
-#		minimum_range_data$interval_lb[zn] <- rebin_collection_with_time_scale(age=minimum_range_data$ma_fa_mx[zn],onset_or_end = "onset",fine_time_scale = finest_chronostrat)
-#		minimum_range_data$interval_ub[zn] <- rebin_collection_with_time_scale(age=minimum_range_data$ma_la_mn[zn],onset_or_end = "end",fine_time_scale = finest_chronostrat)
-##		minimum_range_data$interval_lb[zn] <- this_zone$interval_lb[match(max(this_zone$ma_lb),this_zone$ma_lb)];
-#		minimum_range_data$interval_ub[zn] <- this_zone$interval_ub[match(min(this_zone$ma_ub),this_zone$ma_ub)];
-#		} else	{
-#		if (minimum_range_data$ma_fa_mx[zn]<max(this_zone$ma_lb))	{
-#			minimum_range_data$ma_fa_mx[zn] <- max(this_zone$ma_lb);
-#			minimum_range_data$interval_lb[zn] <- finest_chronostrat$interval[max(1,sum(max(this_zone$ma_lb)<=finest_chronostrat$ma_lb))];
-#			}
-#		if (minimum_range_data$ma_fa_mn[zn]<max(this_zone$ma_lb)){
-#			minimum_range_data$ma_fa_mn[zn] <- max(this_zone$ma_lb);
-#			}
-#		if (minimum_range_data$ma_la_mx[zn]>min(this_zone$ma_ub)){
-#			minimum_range_data$ma_la_mx[zn] <- min(this_zone$ma_ub);
-#			minimum_range_data$interval_ub[zn] <- finest_chronostrat$interval[max(1,sum(max(this_zone$ma_ub)<=finest_chronostrat$ma_ub))];
-#			}
-#		if (minimum_range_data$ma_la_mn[zn]>min(this_zone$ma_ub))	{
-#			minimum_range_data$ma_la_mn[zn] <- min(this_zone$ma_ub);
-#			}
-#		}
-#	}
-#ttt <- (1:ntaxa)[minimum_range_data$ma_fa_mx<minimum_range_data$ma_la_mx];
-#which(is.na(minimum_range_data),arr.ind = T)
 bin_lb <- hierarchical_chronostrat$bin_first[match(unique(paleodb_collections$interval_lb),hierarchical_chronostrat$interval)];
 bin_ub <- hierarchical_chronostrat$bin_last[match(unique(paleodb_collections$interval_ub),hierarchical_chronostrat$interval)];
 bin_lb <- hierarchical_chronostrat$bin_first[match(paleodb_collections$interval_lb,hierarchical_chronostrat$interval)];
@@ -3070,8 +3066,8 @@ fuzz <- 0:max(bin_ub-bin_lb);
 #hist(bin_ub-bin_lb)
 fcolls <- hist(bin_fuzz,breaks=c(min(fuzz)-1,fuzz),plot=F)$counts;
 progress <- cbind(fuzz,fcolls);
-if (update_search)
-	print(progress);
+if (update_search)	print(progress);
+
 while (improved > 0)	{
 	newly_fixed <- new_and_improved <- 0;
 	uc <- 0;	# uc <- match(problems[12],unfixed_collections)
@@ -3087,25 +3083,24 @@ while (improved > 0)	{
 			poss_range <- bin_lb[coll_no]:bin_ub[coll_no];
 
 			bin_gaps <- array(0,dim=c(length(poss_range)));
-			for (rr in 1:nrow(ranges))
-				bin_gaps <- bin_gaps+procrustean_binning_one_taxon(range=ranges[rr,],poss_range=c(min(poss_range),max(poss_range)),debug=F);
+			for (rr in 1:nrow(ranges))	bin_gaps <- bin_gaps+procrustean_binning_one_taxon(range=ranges[rr,],poss_range=c(min(poss_range),max(poss_range)),debug=F);
 
 			# case where some of the previously assigned range induces no gaps in known species
 			if ((min(bin_gaps)<=min_gap_to_set && length(poss_range)>sum(bin_gaps<=min_gap_to_set)) && nrow(index_ranges)>=min_taxa_to_set)	{
-				bin_lb[coll_no] <- min(poss_range[bin_gaps==min(bin_gaps)]);
-				bin_ub[coll_no] <- max(poss_range[bin_gaps==min(bin_gaps)]);
+				bin_lb[coll_no] <- min(poss_range[bin_gaps==min(bin_gaps)])[1];
+				bin_ub[coll_no] <- max(poss_range[bin_gaps==min(bin_gaps)])[1];
 				new_and_improved <- new_and_improved+1;
-				paleodb_collections$interval_lb[coll_no] <- finest_chronostrat$interval[match(bin_lb[coll_no],finest_chronostrat$bin_first)];
-				paleodb_collections$interval_ub[coll_no] <- finest_chronostrat$interval[match(bin_ub[coll_no],finest_chronostrat$bin_last)];
-				paleodb_collections$ma_lb[coll_no] <- min(paleodb_collections$ma_lb[coll_no],finest_chronostrat$ma_lb[match(bin_lb[coll_no],finest_chronostrat$bin_first)]);
-				paleodb_collections$ma_ub[coll_no] <- max(paleodb_collections$ma_ub[coll_no],finest_chronostrat$ma_ub[match(bin_ub[coll_no],finest_chronostrat$bin_last)]);
+				paleodb_collections$interval_lb[coll_no] <- finest_chronostrat$interval[match(bin_lb[coll_no],finest_chronostrat$bin_first)][1];
+				paleodb_collections$interval_ub[coll_no] <- finest_chronostrat$interval[match(bin_ub[coll_no],finest_chronostrat$bin_last)][1];
+				paleodb_collections$ma_lb[coll_no] <- min(paleodb_collections$ma_lb[coll_no],finest_chronostrat$ma_lb[match(bin_lb[coll_no],finest_chronostrat$bin_first)])[1];
+				paleodb_collections$ma_ub[coll_no] <- max(paleodb_collections$ma_ub[coll_no],finest_chronostrat$ma_ub[match(bin_ub[coll_no],finest_chronostrat$bin_last)])[1];
 				# case where we've narrowed it down to one bin
 				if (sum(bin_gaps==min_gap_to_set)==1)	{
 					# the earliest possible first occurrences must be at least as old as the oldest possible first occurrences
 					#	for those taxa first known from this interval
 					sub_index_ranges <- subset(index_ranges,index_ranges$interval_lb==paleodb_collections$interval_lb[coll_no]);
 					if (nrow(sub_index_ranges)>0)	{
-						sub_index_ranges$ma_fa_mx[sub_index_ranges$ma_fa_mx<max(sub_index_ranges$ma_fa_mn)] <- max(sub_index_ranges$ma_fa_mn);
+						sub_index_ranges$ma_fa_mx[sub_index_ranges$ma_fa_mx<max(sub_index_ranges$ma_fa_mn)] <- max(sub_index_ranges$ma_fa_mn)[1];
 						index_ranges[match(rownames(sub_index_ranges),rownames(index_ranges)),] <- sub_index_ranges
 						}
 
@@ -3113,11 +3108,12 @@ while (improved > 0)	{
 					#	for those taxa last known from this interval
 					sub_index_ranges <- subset(index_ranges,index_ranges$interval_ub==paleodb_collections$interval_ub[coll_no]);
 					if (nrow(sub_index_ranges)>0)	{
-						sub_index_ranges$ma_la_mn[sub_index_ranges$ma_la_mn>min(sub_index_ranges$ma_la_mx)] <- min(sub_index_ranges$ma_la_mx);
-						index_ranges[match(rownames(sub_index_ranges),rownames(index_ranges)),] <- sub_index_ranges
+						sub_index_ranges$ma_la_mn[sub_index_ranges$ma_la_mn>min(sub_index_ranges$ma_la_mx)] <- min(sub_index_ranges$ma_la_mx)[1];
+						index_ranges[match(rownames(sub_index_ranges),rownames(index_ranges)),] <- sub_index_ranges;
 						}
 					indexed_species <- rownames(index_ranges);
 					i_s <- match(indexed_species,rownames(minimum_range_data));
+					i_s <- i_s[!is.na(i_s)];
 					minimum_range_data[i_s,] <- index_ranges;
 
 					if (nrow(index_ranges_all) > nrow(index_ranges))	{
@@ -3147,8 +3143,7 @@ while (improved > 0)	{
 					}
 				}
  			}
- 		if (sum(bin_lb==Inf)>0 || sum(is.na(bin_lb))>0)
- 			print(uc);
+ 		if (sum(bin_lb==Inf)>0 || sum(is.na(bin_lb))>0)	print(uc);
 #		print(cbind(uc,minimum_range_data[2309,]));
 #		print(c(paleodb_collections$ma_lb[195],paleodb_collections$ma_ub[195]));
 		}
@@ -3172,8 +3167,7 @@ while (improved > 0)	{
 	fcolls <- hist(bin_ub-bin_lb,breaks=c(min(fuzz)-1,fuzz),plot=F)$counts;
 #	fcolls <- hist(bin_ub-bin_lb,breaks=c(fuzz,max(fuzz)+1),plot=F)$counts;
 	progress <- cbind(progress,fcolls);
-	if (update_search)
-		print(progress);
+	if (update_search)	print(progress);
 	}
 
 paleodb_collections$bin_lb <- bin_lb;
@@ -4249,3 +4243,52 @@ output <- list(paleodb_collections,paleodb_finds,progress);
 names(output) <- c("ml_optimized_collections","ml_optimized_paleodb_finds","iterations");
 return(output);
 }
+
+# ####
+flotsam_and_jetsam <- function()	{
+# cut stuff from optimo_paleodb_collection_and_occurrence_stratigraphy
+#cbind(minimum_range_data$ma_la_mn[zone_rows[make_younger]],these_zones_keep$ma_ub[make_younger])
+
+# now, adjust ranges as needed
+#zone_rows
+#minimum_range_data$interval_lb[match(zone_taxa,rownames(minimum_range_data))]
+#minimum_range_data$interval_ub[match(zone_taxa,rownames(minimum_range_data))]
+#zt <- 0;
+#while (zt < length(zone_taxa))	{
+#for (zt in 1:length(zone_taxa))	{
+#	zt <- zt+1;
+#	zn <- match(zone_taxa[zt],taxon_names);
+#	if (minimum_range_data$ma_fa_mn[zn]==0)
+#		print(zt)
+#	this_zone <- subset(zone_database,zone_database$zone==zone_taxa[zt]);
+
+#	if (minimum_range_data$ma_fa_mn[zn]==0)	{
+#		minimum_range_data$ma_fa_mx[zn] <- minimum_range_data$ma_fa_mn[zn] <- max(this_zone$ma_lb);
+#		minimum_range_data$ma_la_mx[zn] <- minimum_range_data$ma_la_mn[zn] <- min(this_zone$ma_ub);
+#		minimum_range_data$interval_lb[zn] <- rebin_collection_with_time_scale(age=minimum_range_data$ma_fa_mx[zn],onset_or_end = "onset",fine_time_scale = finest_chronostrat)
+#		minimum_range_data$interval_ub[zn] <- rebin_collection_with_time_scale(age=minimum_range_data$ma_la_mn[zn],onset_or_end = "end",fine_time_scale = finest_chronostrat)
+##		minimum_range_data$interval_lb[zn] <- this_zone$interval_lb[match(max(this_zone$ma_lb),this_zone$ma_lb)];
+#		minimum_range_data$interval_ub[zn] <- this_zone$interval_ub[match(min(this_zone$ma_ub),this_zone$ma_ub)];
+#		} else	{
+#		if (minimum_range_data$ma_fa_mx[zn]<max(this_zone$ma_lb))	{
+#			minimum_range_data$ma_fa_mx[zn] <- max(this_zone$ma_lb);
+#			minimum_range_data$interval_lb[zn] <- finest_chronostrat$interval[max(1,sum(max(this_zone$ma_lb)<=finest_chronostrat$ma_lb))];
+#			}
+#		if (minimum_range_data$ma_fa_mn[zn]<max(this_zone$ma_lb)){
+#			minimum_range_data$ma_fa_mn[zn] <- max(this_zone$ma_lb);
+#			}
+#		if (minimum_range_data$ma_la_mx[zn]>min(this_zone$ma_ub)){
+#			minimum_range_data$ma_la_mx[zn] <- min(this_zone$ma_ub);
+#			minimum_range_data$interval_ub[zn] <- finest_chronostrat$interval[max(1,sum(max(this_zone$ma_ub)<=finest_chronostrat$ma_ub))];
+#			}
+#		if (minimum_range_data$ma_la_mn[zn]>min(this_zone$ma_ub))	{
+#			minimum_range_data$ma_la_mn[zn] <- min(this_zone$ma_ub);
+#			}
+#		}
+#	}
+#ttt <- (1:ntaxa)[minimum_range_data$ma_fa_mx<minimum_range_data$ma_la_mx];
+#which(is.na(minimum_range_data),arr.ind = T)
+
+}
+
+{}
